@@ -52,16 +52,14 @@ type block_stack = block_stack_item Stack.t
 
 let block_stack : block_stack = Stack.create ()
 
-(* the resulting wasm module *)
-let wasm_module = ref {
+let reset_wasm_module = {
   types = [];
   globals = [];
   tables = Types.[{
     ttype = TableType ({min = 0l; max = Some 0l}, AnyFuncType)
   }];
   memories = Types.[{
-    (* TODO: this needs to be improved when doing GC *)
-    mtype = MemoryType {min = 100l; max = Some 100l}
+    mtype = MemoryType {min = 10000l; max = Some 10000l}
   }];
   funcs = [];
   start = None;
@@ -71,6 +69,9 @@ let wasm_module = ref {
   exports = [];
   symbols = [];
 }
+
+(* the resulting wasm module *)
+let wasm_module = ref reset_wasm_module
 
 let unique_name_counter = ref 0
 
@@ -548,24 +549,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
 let end_assembly () =
   let w = Linking.create_symbol_table !wasm_module !functions in
   Encode.encode w;
-  wasm_module := {
-    types = [];
-    globals = [];
-    tables = Types.[{
-      ttype = TableType ({min = 0l; max = Some 0l}, AnyFuncType)
-    }];
-    memories = Types.[{
-      (* TODO: this needs to be improved when doing GC *)
-      mtype = MemoryType {min = 100000l; max = Some 100000l}
-    }];
-    funcs = [];
-    start = None;
-    elems = [];
-    data = [];
-    imports = [];
-    exports = [];
-    symbols = [];
-  }
+  wasm_module := reset_wasm_module
 
 let data dl =
   if List.length dl > 0 && (List.exists (fun x -> 
