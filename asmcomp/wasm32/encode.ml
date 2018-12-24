@@ -289,12 +289,12 @@ let encode m =
         op 0x23;
         let p = pos s in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
-        reloc_index 3l
+        reloc_index 0l (* HARDCODED: fix me *)
       | SetGlobal x ->
         op 0x24;
         let p = pos s in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
-        reloc_index 2l
+        reloc_index 0l (* HARDCODED: fix me *)
       | Load ({ty = I32Type; sz = None; _} as mo) -> op 0x28; memop mo
       | Load ({ty = I64Type; sz = None; _} as mo) -> op 0x29; memop mo
       | Load ({ty = F32Type; sz = None; _} as mo) -> op 0x2a; memop mo
@@ -778,10 +778,18 @@ let encode m =
           u8 6;
           vu32 (Int32.sub offset !code_pos); 
           vu32_fixed index
-        | R_WEBASSEMBLY_GLOBAL_INDEX_LEB (offset, index) ->
+        | R_WEBASSEMBLY_GLOBAL_INDEX_LEB (offset, index_) ->
           u8 7;
           vu32 (Int32.sub offset !code_pos);
-          vu32_fixed 0l
+          (* hard coded: fix me someday *)
+          let symbol_index = ref (-1) in
+            List.iteri (fun i s -> match s.details with
+            | Global _ -> (
+                symbol_index := i
+              )
+            | _ -> ()) m.symbols;
+
+          vu32_fixed (Int32.of_int !symbol_index)
       )
       ) !code_relocations
       
