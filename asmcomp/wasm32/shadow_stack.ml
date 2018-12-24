@@ -34,7 +34,9 @@ let func f =
   ) f.locals)
   @
   [
-    Const (I32 (I32.of_int_s stackframe_size));    
+    GetGlobal "__stack_pointer";
+    Const (I32 (I32.of_int_s stackframe_size));  
+    Binary (I32 I32Op.Sub);  
     SetGlobal "__stack_pointer"
   ]
   in
