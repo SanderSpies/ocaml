@@ -89,18 +89,7 @@ let begin_assembly () = (
   global_offset := !global_offset + 8; (* TODO: make this a bit smarter (eg. count the previous sizes) *)
   let w = !wasm_module in
   wasm_module := Ast.{w with
-    globals = [
-      {
-        name = "global_offset";
-        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
-        value = [Const (I32 (I32.of_int_s !global_offset))]
-      };
-      {
-        name = "global_memory_offset";
-        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
-        value = [Const (I32 (I32.of_int_s 0))]
-      }
-    ];
+    globals = [];
     types = [
       {tname = "jsTryWithType"; tdetails = Types.FuncType ([Types.I32Type;Types.I32Type;Types.I32Type], [])};
       {tname = "type_"; tdetails = Types.FuncType ([Types.I32Type], [Types.I32Type])};
@@ -546,7 +535,8 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let w = Linking.create_symbol_table !wasm_module !functions in
+  let w = Shadow_stack.add_shadow_stack !wasm_module in
+  let w = Linking.create_symbol_table w !functions in
   Encode.encode w;
   wasm_module := {
     types = [];
