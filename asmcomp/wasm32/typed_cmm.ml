@@ -67,11 +67,11 @@ let functions:func_result list ref = ref []
 
 let mach_to_wasm = function 
   | [||] -> []   
-  | [|Float|] -> [F32Type]   
+  | [|Float|] -> [NumType F32Type]
   | [|Val|]
   | [|Addr|]
   | [|Int|] -> 
-    [I32Type]
+      [RefType AnyRefType]
   | _ -> assert false
 
 let oper_result_type = function

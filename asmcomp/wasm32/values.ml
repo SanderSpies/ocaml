@@ -42,7 +42,7 @@ let string_of_values = function
 
 (* Injection & projection *)
 
-exception Value of value_type
+exception Value of num_type
 
 module type ValueType =
 sig

@@ -128,11 +128,18 @@ let encode m =
 
     open Types
 
-    let value_type = function
+    let num_type = function
       | I32Type -> vs7 (-0x01)
       | I64Type -> vs7 (-0x02)
       | F32Type -> vs7 (-0x03)
       | F64Type -> vs7 (-0x04)
+
+    let ref_type = function
+      | AnyRefType -> vs7 (-0x10)
+
+    let value_type = function
+      | NumType n -> num_type n
+      | RefType r -> ref_type r
 
     let elem_type = function
       | AnyFuncType -> vs7 (-0x10)

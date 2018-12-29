@@ -1,6 +1,8 @@
 (* Types *)
 
-type value_type = I32Type | I64Type | F32Type | F64Type
+type num_type = I32Type | I64Type | F32Type | F64Type
+type ref_type = AnyRefType
+type value_type = NumType of num_type | RefType of ref_type
 type elem_type = AnyFuncType
 type stack_type = value_type list
 type func_type = FuncType of stack_type * stack_type
@@ -69,10 +71,13 @@ let globals =
 (* String conversion *)
 
 let string_of_value_type = function
-  | I32Type -> "i32"
-  | I64Type -> "i64"
-  | F32Type -> "f32"
-  | F64Type -> "f64"
+  | NumType n -> (match n with
+    | I32Type -> "i32"
+    | I64Type -> "i64"
+    | F32Type -> "f32"
+    | F64Type -> "f64")
+  | RefType r -> (match r with
+    | AnyRefType -> "anyref")
 
 let string_of_value_types = function
   | [t] -> string_of_value_type t

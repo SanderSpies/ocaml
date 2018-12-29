@@ -3920,6 +3920,10 @@ var env = {
   caml_apply5: function() {
     throw new Error("Not implemented yet");
   },
+  js_int_new: function(val) {
+    console.log(`Allocating an int (${val})...`);
+    return val; // will be received as anyref instead of i32
+  },
   caml_alloc: function(amount) {
     const result = env.alloc;
     env.alloc += amount;
@@ -4530,47 +4534,47 @@ describe("functions", () => {
         .catch(e => done(e));
     });
   });
-  describe("curried functions", () => {
-    it("should return 30 when 6 and 20 is given - direct pointer", done => {
-      fetchAndInstantiate("/base/test/curried_function.wasm")
-        .then(instance => {
-          // Object.keys(instance.exports).forEach(a => console.log(a));
-          env.alloc = instance.exports.__heap_base.value;
-          env.instance = instance;
+  // describe("curried functions", () => {
+  //   it("should return 30 when 6 and 20 is given - direct pointer", done => {
+  //     fetchAndInstantiate("/base/test/curried_function.wasm")
+  //       .then(instance => {
+  //         // Object.keys(instance.exports).forEach(a => console.log(a));
+  //         env.alloc = instance.exports.__heap_base.value;
+  //         env.instance = instance;
 
-          instance.exports._start();
-          expect(
-            extract(instance, instance.exports.camlCurried_function__bar_1002())
-              .c
-          ).to.equal(
-            "Once upon a time there was a 2131232323 #@$!@#@#@ ^&%%^&%^& 1"
-          );
+  //         instance.exports._start();
+  //         expect(
+  //           extract(instance, instance.exports.camlCurried_function__bar_1002())
+  //             .c
+  //         ).to.equal(
+  //           "Once upon a time there was a 2131232323 #@$!@#@#@ ^&%%^&%^& 1"
+  //         );
 
-          expect(extract(instance, convert("yolo1234")).c).to.equal("yolo1234");
+  //         expect(extract(instance, convert("yolo1234")).c).to.equal("yolo1234");
 
-          expect(
-            extract(
-              instance,
-              instance.exports.camlCurried_function__hello_1005(
-                convert("Foobar")
-              )
-            ).c
-          ).to.equal("Foobar");
+  //         expect(
+  //           extract(
+  //             instance,
+  //             instance.exports.camlCurried_function__hello_1005(
+  //               convert("Foobar")
+  //             )
+  //           ).c
+  //         ).to.equal("Foobar");
 
-          // let func =
-          //   instance.exports.camlCurried_function__curried_function_1639;
-          // let calculatedValue = func(ocamlInt(6), ocamlInt(20));
-          // expect(jsInt([calculatedValue])).to.equal(49);
+  //         // let func =
+  //         //   instance.exports.camlCurried_function__curried_function_1639;
+  //         // let calculatedValue = func(ocamlInt(6), ocamlInt(20));
+  //         // expect(jsInt([calculatedValue])).to.equal(49);
 
-          // func = instance.exports.camlCurried_function__curried_function_3_1643;
-          // calculatedValue = func(ocamlInt(20));
-          // expect(jsInt(calculatedValue)).to.equal(78);
+  //         // func = instance.exports.camlCurried_function__curried_function_3_1643;
+  //         // calculatedValue = func(ocamlInt(20));
+  //         // expect(jsInt(calculatedValue)).to.equal(78);
 
-          done();
-        })
-        .catch(e => done(e));
-    });
-  });
+  //         done();
+  //       })
+  //       .catch(e => done(e));
+  //   });
+  // });
   //
   //     // this function needs a change in wasmgen.ml - an extra argument needs to be added
   //     // to functions which have a fun_dbg list > 0
@@ -4726,59 +4730,61 @@ describe("functions", () => {
   // });
   //
   //
-  // describe('arithmetic', () => {
-  //   describe('int', () => {
-  //     it ('should support basic arithmetic', done => {
-  //       fetchAndInstantiate("/base/test/arithmetic.wasm").then(instance => {
-  //         expect(instance.exports.caml_program()).to.equal(1);
-  //         expect(instance.exports.camlArithmetic__addi_1002(ocamlInt(5), ocamlInt(6))).to.equal(ocamlInt(11));
-  //
-  //         expect(instance.exports.camlArithmetic__mini_1005(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(5));
-  //         expect(instance.exports.camlArithmetic__divi_1008(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(2));
-  //         expect(instance.exports.camlArithmetic__muli_1011(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(50));
-  //
-  //         expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(1));
-  //         expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(99), ocamlInt(3))).to.equal(ocamlInt(0));
-  //         expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(101), ocamlInt(3))).to.equal(ocamlInt(2));
-  //
-  //         expect(instance.exports.camlArithmetic__land__1017(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(2));
-  //         expect(instance.exports.camlArithmetic__lor__1020(ocamlInt(4), ocamlInt(2))).to.equal(ocamlInt(6));
-  //         expect(instance.exports.camlArithmetic__lxor__1023(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(9));
-  //         expect(instance.exports.camlArithmetic__lsl__1026(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(20));
-  //         expect(instance.exports.camlArithmetic__lsr__1029(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(5));
-  //         expect(instance.exports.camlArithmetic__asr__1032(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(5));
-  //         done();
-  //       })
-  //       .catch(e => { done(e) })
-  //     })
-  //   });
-  //   describe('float', () => {
-  //     xit ('should support basic arithmetic', done => {
-  //       fetchAndInstantiate("/base/test/arithmetic.wasm").then(instance => {
-  //         /* floats work, but tests need to be fixed - need to figure how one can access the memory from js */
-  //         //
-  //         //
-  //         //
-  //         // expect(instance.exports.caml_program()).to.equal(1);
-  //         //
-  //         // let alloc = instance.exports.table.get(3);
-  //         // let addr = alloc(8);
-  //         //
-  //         // const x = new Float32Array(instance.exports.memory.buffer.slice(addr, addr + 12));
-  //         // x[0] = 5;
-  //         // x[1] = 12;
-  //         //
-  //         // instance.exports.memory
-  //         // const x21 = new Float32Array(instance.exports.memory.buffer.slice(addr, addr + 12));
-  //         // console.debug('riiight1:', x21[0], x21[1], x21[2], x[0], x[1]);
-  //         //
-  //         // var pointer = instance.exports.camlArithmetic__divf_1043(addr, addr + 4);
-  //         // const x2 = new Float32Array(instance.exports.memory.buffer.slice(pointer, pointer + 4));
-  //         // console.debug('riiight:', x2[0]);
-  //
-  //         done();
-  //       })
-  //       .catch(e => { done(e) })
-  //     })
-  //   });
+  describe('arithmetic', () => {
+    describe('int', () => {
+      it ('should support basic arithmetic', done => {
+        fetchAndInstantiate("/base/test/arithmetic.wasm").then(instance => {
+          // expect(instance.exports.caml_program()).to.equal(1);
+          expect(instance.exports.camlArithmetic__addi_1002(ocamlInt(5), ocamlInt(6))).to.equal(ocamlInt(11));
+          expect(instance.exports.camlArithmetic__addi_1002(ocamlInt(5), ocamlInt(6))).to.equal(ocamlInt(11));
+
+          expect(instance.exports.camlArithmetic__mini_1005(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(5));
+          expect(instance.exports.camlArithmetic__divi_1008(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(2));
+          expect(instance.exports.camlArithmetic__muli_1011(ocamlInt(10), ocamlInt(5))).to.equal(ocamlInt(50));
+
+          expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(1));
+          expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(99), ocamlInt(3))).to.equal(ocamlInt(0));
+          expect(instance.exports.camlArithmetic__modi_1014(ocamlInt(101), ocamlInt(3))).to.equal(ocamlInt(2));
+
+          expect(instance.exports.camlArithmetic__land__1017(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(2));
+          expect(instance.exports.camlArithmetic__lor__1020(ocamlInt(4), ocamlInt(2))).to.equal(ocamlInt(6));
+          expect(instance.exports.camlArithmetic__lxor__1023(ocamlInt(10), ocamlInt(3))).to.equal(ocamlInt(9));
+          expect(instance.exports.camlArithmetic__lsl__1026(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(20));
+          expect(instance.exports.camlArithmetic__lsr__1029(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(5));
+          expect(instance.exports.camlArithmetic__asr__1032(ocamlInt(10), ocamlInt(1))).to.equal(ocamlInt(5));
+          done();
+        })
+        .catch(e => { done(e) })
+      })
+    });
+    // describe('float', () => {
+    //   xit ('should support basic arithmetic', done => {
+    //     fetchAndInstantiate("/base/test/arithmetic.wasm").then(instance => {
+    //       /* floats work, but tests need to be fixed - need to figure how one can access the memory from js */
+    //       //
+    //       //
+    //       //
+    //       // expect(instance.exports.caml_program()).to.equal(1);
+    //       //
+    //       // let alloc = instance.exports.table.get(3);
+    //       // let addr = alloc(8);
+    //       //
+    //       // const x = new Float32Array(instance.exports.memory.buffer.slice(addr, addr + 12));
+    //       // x[0] = 5;
+    //       // x[1] = 12;
+    //       //
+    //       // instance.exports.memory
+    //       // const x21 = new Float32Array(instance.exports.memory.buffer.slice(addr, addr + 12));
+    //       // console.debug('riiight1:', x21[0], x21[1], x21[2], x[0], x[1]);
+    //       //
+    //       // var pointer = instance.exports.camlArithmetic__divf_1043(addr, addr + 4);
+    //       // const x2 = new Float32Array(instance.exports.memory.buffer.slice(pointer, pointer + 4));
+    //       // console.debug('riiight:', x2[0]);
+
+    //       done();
+    //     })
+    //       .catch(e => { done(e) })
+    //   })
+    // });
+  })
 });

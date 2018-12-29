@@ -51,7 +51,7 @@ let create_symbol_table m fti = (
                if (isprefix "caml_curry" symbol) then
                 Ast.Types.[{
                   name = symbol;
-                  details = Import ([I32Type; I32Type], [I32Type])
+                  details = Import ([NumType I32Type; NumType I32Type], [NumType I32Type])
                 }]
               else 
                 [{
@@ -62,7 +62,7 @@ let create_symbol_table m fti = (
               if (isprefix "caml_curry" symbol) then
                 Ast.Types.[{
                   name = symbol;
-                  details = Import ([I32Type; I32Type], [I32Type])
+                  details = Import ([NumType I32Type; NumType I32Type], [NumType I32Type])
                 }]
               else 
                 [{
@@ -89,12 +89,12 @@ let create_symbol_table m fti = (
               (if (isprefix "caml_curry" symbol) then
                 Ast.Types.[{
                   name = symbol;
-                  details = Import ([I32Type; I32Type], [I32Type])
+                  details = Import ([NumType I32Type; NumType I32Type], [NumType I32Type])
                 }]
               else 
                  [{
                   name = symbol;
-                  details = Import (List.fold_left (fun a i -> a @ i) [] args, Ast.Types.(match rt with [F32Type] -> [F32Type] | _ -> [I32Type]))
+                  details = Import (List.fold_left (fun a i -> a @ i) [] args, Ast.Types.(match rt with [NumType F32Type] -> [NumType F32Type] | _ -> [NumType I32Type]))
                 }])
             | None -> 
               

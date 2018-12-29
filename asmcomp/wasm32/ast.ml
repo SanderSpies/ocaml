@@ -63,7 +63,7 @@ type mem_size = Mem8 | Mem16 | Mem32
 type extension = SX | ZX
 
 type 'a memop =
-  {ty : value_type; align : int; offset : int32; sz : 'a option}
+  {ty : num_type; align : int; offset : int32; sz : 'a option}
 type loadop = (mem_size * extension) memop
 type storeop = mem_size memop
 
