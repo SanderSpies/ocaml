@@ -77,8 +77,15 @@ let create_symbol_table m fti = (
   let add_missing_symbols () = Ast.(
     let code_symbols = ref [] in
     let rec handle_expr instr =
+      (match instr with 
+      | CallIndirect (_, args) :: _
+      | Call (_, args) :: _ -> List.iter (fun i -> handle_expr i) args
+      | SetLocal (_, arg) :: _ -> handle_expr arg
+      | _ -> ()
+      );
+
       (match instr with
-      | Call symbol :: remaining
+      | Call (symbol, _) :: remaining
       | FuncSymbol symbol :: remaining ->  
         (if not (List.exists (fun s -> s.name = symbol) m.symbols) && 
             not (List.exists (fun s -> s.name = symbol) !code_symbols) then  (
@@ -141,7 +148,7 @@ let create_symbol_table m fti = (
       match symbol.details with 
       | Function
       | Import _ -> (
-        let key = symbol.name in
+        let key = symbol.name in        
         not (List.exists (fun (i:Ast.import) -> (Ast.string_of_name i.item_name) = key) m.imports)
         &&
         not (List.exists (fun (f:Ast.func) -> f.name = key) m.funcs)
@@ -151,6 +158,7 @@ let create_symbol_table m fti = (
     let imports = ref [] in
     let types = ref [] in
     List.iter (fun symbol ->
+      
       let key = symbol.name in
       let name_ = ("empty_type_" ^ key) in
       let (arg, result) = match symbol.details with 

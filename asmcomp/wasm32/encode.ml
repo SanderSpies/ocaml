@@ -183,15 +183,13 @@ let encode m =
     let reloc_index x = 
       vu32_fixed x
     
-    let temp = ref None
-    
     let func_symbol_index symbol = 
       let rec f symbol symbols result = 
         match symbols with 
         | {name; details = Function} :: remaining
         | {name; details = Import _} :: remaining when name = symbol -> result
         | _ :: remaining -> f symbol remaining (Int32.add result 1l)
-        | [] -> assert false
+        | [] -> print_endline ("could not find:" ^ symbol); assert false
       in
       f symbol m.symbols 0l
 
@@ -242,12 +240,6 @@ let encode m =
 
 
     let rec instr e =
-      (match e with
-      | CallIndirect _ -> ()
-      | Load _ -> ()
-      | Store _ -> ()
-      | _ -> temp := None);
-
       match e with
       | Unreachable -> op 0x00
       | Nop -> op 0x01
@@ -261,18 +253,16 @@ let encode m =
       | BrIf x -> op 0x0d; var x
       | BrTable (xs, x) -> op 0x0e; vec var xs; var x
       | Return -> op 0x0f
-      | Call symbol ->
+      | Call (symbol, args) ->
+        List.iter (fun i -> List.iter instr i) args;
         op 0x10;
         let p = pos s in
         let index = func_index symbol in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_FUNCTION_INDEX_LEB (Int32.of_int p, symbol)];          
         reloc_index index
-      | CallIndirect x ->
-        op 0x11;
-        (* (match !temp with
-        | Some (offset, i) -> relocations := !relocations @ [Memory_address_reloc (Int32.of_int offset, i)]
-        | None -> ());
-        temp := None; *)
+      | CallIndirect (x, args) ->
+        List.iter (fun i -> List.iter instr i) args;
+        op 0x11;        
         let p2 = pos s in
         let x = find_type x in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_TYPE_INDEX_LEB (Int32.of_int p2, x)];
@@ -281,7 +271,8 @@ let encode m =
       | Drop -> op 0x1a
       | Select -> op 0x1b
       | GetLocal x -> op 0x20; var x
-      | SetLocal x -> 
+      | SetLocal (x, args) -> 
+        List.iter instr args;
         op 0x21;
         var x
       | TeeLocal x -> op 0x22; var x
@@ -345,6 +336,7 @@ let encode m =
         | Function when s.name = symbol && not !found ->
           found := true;
           code_relocations := !code_relocations @ [R_WEBASSEMBLY_TABLE_INDEX_SLEB (Int32.of_int p, symbol)];
+          
           vs32_fixed (func_index symbol)
         | _ -> ()
         ) m.symbols;
