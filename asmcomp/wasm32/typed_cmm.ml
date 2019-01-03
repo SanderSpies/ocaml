@@ -2,7 +2,7 @@ open Cmm
 open Ast.Types
 
 type symbol_kind = 
-  | Sfunction
+  | Sfunction of stack_type list
   | Sdata
 
 type typed_expression =
@@ -188,7 +188,7 @@ let rec process env e =
     | Cconst_symbol s -> 
         let func = get_func s in
         let (t, k) = match func with 
-        | Some _ -> (typ_int, Sfunction)
+        | Some (_,_, args) -> (typ_int, Sfunction args)
         | None -> (typ_int, Sdata)
         in
         push t;
@@ -336,7 +336,6 @@ let rec process env e =
             add_local (ident i, typ_int)
           )) il; 
           let result = (i, il, process env expr) in
-          print_endline "bwith 1";
           Stack.push (Bwith (i, Stack.top stack)) block_stack;          
           rt := Stack.top stack;
           pop ();
@@ -347,13 +346,10 @@ let rec process env e =
           r, 
           with_exprs, 
           (
-           print_endline "bcatch 1";
            Stack.push Bcatch block_stack;
            let result = process env body_ in            
            ignore(Stack.pop block_stack);
-           print_endline "bcatch 2";
            ignore(Stack.pop block_stack);
-           print_endline "bwith 2";
            pop ();
            result),
           mach_to_wasm (if needs_return then !rt else typ_void)

@@ -124,12 +124,7 @@ let begin_assembly () = (
         module_name = name "js";
         item_name = name "jsRaise_i32_i32";
         idesc = FuncImport "type_"
-      };
-      {
-        module_name = name "js";
-        item_name = name "jsRaise_i32_unit";
-        idesc = FuncImport "raise_i32_ftype"
-      };
+      };      
       {
         module_name = name "js";
         item_name = name "caml_fresh_oo_id";
@@ -186,6 +181,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   in
   let rec to_operations expression_list operation = 
     let el = List.fold_left (fun a (e, _) -> a @ (emit_expr e)) [] expression_list in
+    let el2 = List.map (fun (e, _) -> emit_expr e) expression_list in
     match operation, expression_list with
     | Calloc, ((Tblockheader (header, _), _) as hd) :: rest -> (
         let (_word_size, _tag) = blockheader_details header in
@@ -201,7 +197,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           Binary (I32 I32Op.Add)]
           in        
           let middle = match f with        
-          | Tconst_symbol (symbol, Sfunction) -> [FuncSymbol symbol]
+          | Tconst_symbol (symbol, Sfunction _) -> [FuncSymbol symbol]
           | Tconst_symbol (symbol, Sdata) -> [DataSymbol symbol]
           | _ as e -> emit_expr e
           in
@@ -211,16 +207,15 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           | _ -> assert false
           in
           total_size := !total_size + add;
-          let result = before @ middle @ [Store {ty = List.hd(rt); align = 0; offset = 0l; sz = None}]     
+          let result = before @ middle @ [Store {ty = List.hd rt; align = 0; offset = 0l; sz = None}]     
           in
           
           position := !position + add;
           result
         ) [] ([hd] @ rest)
         in  
-        let result = [Const (I32 (Int32.of_int !total_size));
-        Call "caml_alloc";
-        SetLocal local_
+        let result = [
+          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size))]])]);
         ]
         @
         calls
@@ -237,8 +232,8 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       unique_name_counter := !unique_name_counter + 1;
       let cmod_local = add_local ("cmod_" ^ string_of_int counter, typ_int) in
       let cmod_local2 = add_local ("cmod2_" ^ string_of_int counter, typ_int) in
-      let result = (emit_expr fst) @
-      [SetLocal cmod_local;
+      let result =
+      [SetLocal (cmod_local, emit_expr fst);
         GetLocal cmod_local;
         GetLocal cmod_local] @
       (emit_expr snd) @
@@ -255,22 +250,24 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       Stack.push BCheckbound1 block_stack;    
       let i = fst @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] in
       let t = [
-        DataSymbol "caml_exn_Invalid_argument";
-        Call "jsRaise_i32_unit"
+        
+        Call ("jsRaise_i32_i32", [[DataSymbol "caml_exn_Invalid_argument"]]);
+        Drop
       ] in
       Stack.push BCheckbound2 block_stack;
       let e = snd @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] @ [If ([], [
-            DataSymbol "caml_exn_Invalid_argument";
-            Call "jsRaise_i32_unit"
+            Call ("jsRaise_i32_i32", [[DataSymbol "caml_exn_Invalid_argument"]]);
+            Drop
           ], [])]
       in
       ignore(Stack.pop block_stack);
       let result = i @ [If ([], t, e)] in
       ignore(Stack.pop block_stack);
       result
+    | Cextcall (symbol, mt, _, _), _ -> [Call (symbol, el2)] @ (if mt = typ_void then [Drop] else [])
+    | Craise _, _ -> [Call ("jsRaise_i32_i32", el2); Return]
     | _ -> 
       el @ (match operation with 
-      | Cextcall (symbol, mt, _, _) -> [Call symbol] @ (if mt = typ_void then [Drop] else [])
       | Cload(Byte_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, ZX)}]
       | Cload(Byte_signed, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, SX)}]
       | Cload(Sixteen_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem16, ZX)}]
@@ -336,7 +333,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | Ccmpf CFngt -> failwith "Not supported yet"
       | Ccmpf CFnle -> failwith "Not supported yet"
       | Ccmpf CFnge -> failwith "Not supported yet"
-      | Craise _ -> [Call "jsRaise_i32_i32"; Return]
+      
       | _ -> failwith ("Something is not handled here:" ^ string_of_int (List.length expression_list))
     )
   and emit_expr expression =
@@ -344,24 +341,20 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     | Tconst_int i -> [Const (I32 (I32.of_int_s i))]
     | Tconst_natint i -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
     | Tconst_float f -> [Const (F32 (F32.of_float f))]  
-    | Tconst_symbol (symbol, Sfunction) -> [Call symbol]
-    | Tconst_symbol (symbol, Sdata) -> [DataSymbol symbol]
+    | Tconst_symbol (symbol, _) -> [DataSymbol symbol]
     | Tblockheader (i, _) -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
     | Tvar (_ident, _mt, pos) -> [GetLocal pos]
-    | Tassign (_i, e, pos) -> (emit_expr e) @ [SetLocal pos]
+    | Tassign (_i, e, pos) -> [SetLocal (pos, emit_expr e)]
     | Ttuple [] -> [Nop]
     | Tlet (_ident, arg, arg_rt, fn_body, pos) -> 
       let result = emit_expr arg in    
       if (arg_rt <> []) then (
-        result
-        @
-        [SetLocal pos]
+        [SetLocal (pos, result)]
         @
         (emit_expr fn_body)    
       )
-      else 
+      else
         result
-    
     | Ttuple ([Top (Cload _, _, _, _) as _el; Top (Cload _, _, _, _) as el2]) ->
       print_endline "For now we are always treating 64bit as 32bit - so ignoring the first 4 bytes (most likely very wrong)";
       emit_expr el2
@@ -375,12 +368,12 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         let result = emit_expr f in
         fn_args := !fn_args @ ft;
         if List.length result > 0 then (
-          lst @ result
+          lst @ [result]
         )
         else
           lst
       ) [] tl in
-      let load_action = to_operations el op in
+      let load_action = [to_operations el op] in
       let counter = !unique_name_counter in
       unique_name_counter := !unique_name_counter + 1;
       let name_ = "wasm_unique_name_" ^ string_of_int counter in
@@ -393,19 +386,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           [] 
       in    
       wasm_module := Ast.{w with types = w.types @ [type_]};
-      expression_list @
-      load_action @
-      [CallIndirect name_] @ drop
+      
+      [CallIndirect (name_, expression_list @ load_action)] @ drop
       )
     | Top (Capply mt, (Tconst_symbol (hd, _), _)::tl, _, _) -> (    
-      let expression_list = List.concat (List.map (fun (e, _) -> emit_expr e) tl) in    
+      let expression_list = List.map (fun (e, _) -> emit_expr e) tl in    
       let drop = 
         if Array.length mt = 0 then 
           [Drop] 
         else       
           [] 
-      in        
-      expression_list @ [Call hd] @ drop
+      in      
+      [Call (hd, expression_list)] @ drop  
     )
     | Top (operation, expression_list, _, _) -> to_operations expression_list operation
     | Tsequence (e, Ttuple []) -> emit_expr e @ [Drop]        
@@ -479,7 +471,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       [Block (rt, expr)]         
     )
     | Tcatch _ -> assert false
-    | Texit (i, el, ind) ->
+    | Texit (i, el, _ind) ->
       (
         let el = List.fold_left (fun all e ->
           all @ (emit_expr e)
@@ -491,11 +483,14 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           (match str with 
           | BWith w when w = i -> ( 
             found := true;
+            (* 
+            Not sure if this is still an issue:
+
             if (ind <> !position - 1) then (
               print_endline ("Not expected:" ^ string_of_int ind ^ " does not match: " ^ string_of_int (!position - 1))
             ) else (
               print_endline ("Not expected:" ^ string_of_int ind ^ " DOES match: " ^ string_of_int (!position - 1))
-            );
+            ); *)
             result := [Br (Int32.of_int (!position - 1))]);          
           | _ -> ());
           position := !position + 1
@@ -535,8 +530,10 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let w = Shadow_stack.add_shadow_stack !wasm_module in
-  let w = Linking.create_symbol_table w !functions in
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  (* let w = !wasm_module in
+  let f = !functions in *)
+  let w = Linking.create_symbol_table w f in
   Encode.encode w;
   wasm_module := {
     types = [];
