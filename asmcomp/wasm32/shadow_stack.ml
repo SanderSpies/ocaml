@@ -183,11 +183,11 @@ let add_shadow_stack w fns = (
     | _-> s 
   in
   (Ast.{w with 
-    globals = w.globals @ [{
+    globals = [{
       name = "__stack_pointer";
       gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
       value = [Const (I32 4l)]
-    }];
+    }] @ w.globals;
     funcs = List.map func w.funcs;
     types = List.map type_ w.types;
     symbols = List.map symbol w.symbols;  

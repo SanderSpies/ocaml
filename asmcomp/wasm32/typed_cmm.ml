@@ -182,9 +182,6 @@ let rec process env e =
     | Cconst_float f ->
         push typ_float;
         Tconst_float f
-    | Cconst_symbol "dropme" ->
-        push typ_void;
-        Tconst_symbol ("dropme", Sdata)
     | Cconst_symbol s -> 
         let func = get_func s in
         let (t, k) = match func with 

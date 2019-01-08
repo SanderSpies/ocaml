@@ -1490,18 +1490,20 @@ partialclean::
 # 	# ../llvmwasm/llvm-build/bin/lld -flavor wasm -o test.wasm '-Lstdlib' '-L/usr/local/lib/ocaml'  '/tmp/camlstartup17433d.o' 'stdlib/std_exit.o' 'test.o' 'stdlib/stdlib.o' 'stdlib/libasmrun.a'
 
 libasmrun-wasm:
-	../wabt/bin/wat2wasm libasmrun.wat -r -o libasmrun.wasm
+	../wabt/bin/wat2wasm wasm-runtime/alloc.wat -r -o wasm-runtime/alloc.wasm
+	../wabt/bin/wat2wasm wasm-runtime/libasmrun.wat -r -o wasm-runtime/libasmrun.wasm
+	/llvmwasm/llvm-build/bin/lld -flavor wasm --relocatable wasm-runtime/alloc.wasm wasm-runtime/libasmrun.wasm -o libasmrun.wasm
 
 wasm32-all:
 	./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -target-wasm32
 	make coldstart	
 	make wasm32
 
-wasm32-test:
+wasm32-test: libasmrun-wasm
 	boot/ocamlrun ./ocamlopt -o test -dcmm test.ml -I stdlib -dstartup
 	
 
-wasm32:
+wasm32: 
 	rm -f asmcomp/typed_cmm.cmo
 	rm -f asmcomp/linking.cmo	
 	rm -f asmcomp/shadow_stack.cmo

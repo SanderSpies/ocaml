@@ -168,7 +168,7 @@ let create_symbol_table m fti = (
       let empty_type = {tname = name_; tdetails = Types.FuncType (arg, result)} in
       types := !types @ [empty_type];
       imports := !imports @ [{
-        module_name = name "libasmrun";
+        module_name = name "env";
         item_name = name key;
         idesc = FuncImport name_
       }];
