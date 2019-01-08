@@ -83,7 +83,7 @@ let add_shadow_stack w fns = (
           [fix_body [] (List.hd rev_args)]
           in
           fix_body (result @ [CallIndirect (t, modified_args)]) remaining        
-        | Call (function_name, args) :: remaining ->
+        | Call (function_name, args) :: remaining when function_name <> "caml_alloc" ->
             let modified_args = List.mapi (fun i a -> 
               [GetGlobal "__stack_pointer"; 
                 Const (I32 (I32.of_int_s ((i + 1) * 4))); 

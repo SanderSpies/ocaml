@@ -252,7 +252,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     let el2 = List.map (fun (e, _) -> emit_expr e) expression_list in
     match operation, expression_list with
     | Calloc, ((Tblockheader (header, _), _) as hd) :: rest -> (
-        let (_word_size, _tag) = blockheader_details header in
+        let (_word_size, tag) = blockheader_details header in
         let counter = !unique_name_counter in
         unique_name_counter := !unique_name_counter + 1;
         let local_ = add_local ("allocate_memory_pointer_" ^ string_of_int counter, typ_int) in
@@ -283,7 +283,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         ) [] ([hd] @ rest)
         in  
         let result = [
-          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size))]])]);
+          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size)); Const (I32 (Nativeint.to_int32 tag))]])]);
         ]
         @
         calls
