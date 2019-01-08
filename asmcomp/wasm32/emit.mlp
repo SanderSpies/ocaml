@@ -88,8 +88,86 @@ let blockheader_details header =
 let begin_assembly () = (
   global_offset := !global_offset + 8; (* TODO: make this a bit smarter (eg. count the previous sizes) *)
   let w = !wasm_module in
-  wasm_module := Ast.{w with
-    globals = [];
+  (* 
+   Pointers into the minor heap.
+   [caml_young_base]
+       The [malloc] block that contains the heap.
+   [caml_young_start] ... [caml_young_end]
+       The whole range of the minor heap: all young blocks are inside
+       this interval.
+   [caml_young_alloc_start]...[caml_young_alloc_end]
+       The allocation arena: newly-allocated blocks are carved from
+       this interval, starting at [caml_young_alloc_end].
+   [caml_young_alloc_mid] is the mid-point of this interval.
+   [caml_young_ptr], [caml_young_trigger], [caml_young_limit]
+       These pointers are all inside the allocation arena.
+       - [caml_young_ptr] is where the next allocation will take place.
+       - [caml_young_trigger] is how far we can allocate before triggering
+         [caml_gc_dispatch]. Currently, it is either [caml_young_alloc_start]
+         or the mid-point of the allocation arena.
+       - [caml_young_limit] is the pointer that is compared to
+         [caml_young_ptr] for allocation. It is either
+         [caml_young_alloc_end] if a signal is pending and we are in
+         native code, or [caml_young_trigger].
+  *)
+  wasm_module := Ast.{w with  
+    globals = [
+      (* {
+        name = "caml_young_base"; (* The [malloc] block that contains the heap. *)
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_start"; (* ... caml_young_end - The whole range of the minor heap: all young blocks are inside this interval *)
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_end"; 
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_alloc_start"; (* The allocation arena: newly-allocated blocks are carved from this interval, starting at [caml_young_alloc_end] *)
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_alloc_end";
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_alloc_mid";
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_ptr"; (* is where the next allocation will take place. *)
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        name = "caml_young_trigger"; (* is how far we can allocate before triggering *)
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      };
+      {
+        (* is the pointer that is compared to
+         [caml_young_ptr] for allocation. It is either
+         [caml_young_alloc_end] if a signal is pending and we are in
+         native code, or [caml_young_trigger] *)
+
+        name = "caml_young_limit"; 
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 (-1l))]
+      }; *)
+      {
+        name = "max_young_wosize";
+        gtype = Types.GlobalType (Types.I32Type, Types.Immutable);
+        value = [Const (I32 256l)]
+      }
+    ];
     types = [
       {tname = "jsTryWithType"; tdetails = Types.FuncType ([Types.I32Type;Types.I32Type;Types.I32Type], [])};
       {tname = "type_"; tdetails = Types.FuncType ([Types.I32Type], [Types.I32Type])};
@@ -116,25 +194,15 @@ let begin_assembly () = (
     ];
     imports = [
       {
-        module_name = name "js";
+        module_name = name "env";
         item_name = name "tryWith";
         idesc = FuncImport "jsTryWithType"
       };
       {
-        module_name = name "js";
+        module_name = name "env";
         item_name = name "jsRaise_i32_i32";
         idesc = FuncImport "type_"
-      };      
-      {
-        module_name = name "js";
-        item_name = name "caml_fresh_oo_id";
-        idesc = FuncImport "type_"
       };
-      {
-        module_name = name "libasmrun";
-        item_name = name "caml_alloc";
-        idesc = FuncImport "type_"
-      }
     ];
     exports = [
       {
@@ -184,7 +252,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     let el2 = List.map (fun (e, _) -> emit_expr e) expression_list in
     match operation, expression_list with
     | Calloc, ((Tblockheader (header, _), _) as hd) :: rest -> (
-        let (_word_size, _tag) = blockheader_details header in
+        let (_word_size, tag) = blockheader_details header in
         let counter = !unique_name_counter in
         unique_name_counter := !unique_name_counter + 1;
         let local_ = add_local ("allocate_memory_pointer_" ^ string_of_int counter, typ_int) in
@@ -215,7 +283,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         ) [] ([hd] @ rest)
         in  
         let result = [
-          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size))]])]);
+          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size)); Const (I32 (Nativeint.to_int32 tag))]])]);
         ]
         @
         calls

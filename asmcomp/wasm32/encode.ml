@@ -27,6 +27,11 @@ let to_string s =
 
 (* Encoding *)
 
+let name2 s =
+      try Utf8.decode s with Utf8.Utf8 ->
+        failwith "invalid UTF-8 encoding"
+
+
 type code_relocation =
   | R_WEBASSEMBLY_FUNCTION_INDEX_LEB of int32 * string
   | R_WEBASSEMBLY_MEMORY_ADDR_LEB of int32 * Ast.var  
@@ -183,6 +188,30 @@ let encode m =
     let reloc_index x = 
       vu32_fixed x
     
+    let find_global_index index_ =
+      let result = ref (-1) in
+      List.iteri (fun i s -> match s.details with
+      | Global {index} when s.name = index_ -> (
+          result := i
+        )
+      | _ -> ()) m.symbols;
+      if !result = -1 then 
+        assert false 
+      else 
+        !result
+
+    let find_global_index2 index_ =
+      let result = ref (-1l) in
+      List.iteri (fun i s -> match s.details with
+      | Global {index} when s.name = index_ -> (
+          result := index
+        )
+      | _ -> ()) m.symbols;
+      if !result = (-1l) then 
+        assert false 
+      else 
+        !result
+
     let func_symbol_index symbol = 
       let rec f symbol symbols result = 
         match symbols with 
@@ -280,12 +309,12 @@ let encode m =
         op 0x23;
         let p = pos s in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
-        reloc_index 0l (* HARDCODED: fix me *)
+        reloc_index (find_global_index2 x)
       | SetGlobal x ->
         op 0x24;
         let p = pos s in
         code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
-        reloc_index 0l (* HARDCODED: fix me *)
+        reloc_index (find_global_index2 x)
       | Load ({ty = I32Type; sz = None; _} as mo) -> op 0x28; memop mo
       | Load ({ty = I64Type; sz = None; _} as mo) -> op 0x29; memop mo
       | Load ({ty = F32Type; sz = None; _} as mo) -> op 0x2a; memop mo
@@ -559,7 +588,7 @@ let encode m =
 
     let import im =
       let {module_name; item_name; idesc} = im in
-      name module_name; name item_name; import_desc idesc
+      name module_name; name (name2 ("$" ^ Ast.string_of_name item_name)); import_desc idesc
 
     let import_section ims =
       section 2 (vec import) ims (ims <> [])
@@ -602,9 +631,16 @@ let encode m =
       | MemoryExport x -> u8 2; var x
       | GlobalExport x -> u8 3; var x
 
+    
+
+
     let export ex =
       let {name = n; edesc} = ex in
-      name n; export_desc edesc
+      (match edesc with 
+      | FuncExport _ -> name (name2 ("$" ^ Ast.string_of_name n))
+      | _ -> name n);
+      (* name n; *)
+      export_desc edesc
 
     let export_section exs =
       section 7 (vec export) exs (exs <> [])
@@ -773,15 +809,8 @@ let encode m =
         | R_WEBASSEMBLY_GLOBAL_INDEX_LEB (offset, index_) ->
           u8 7;
           vu32 (Int32.sub offset !code_pos);
-          (* hard coded: fix me someday *)
-          let symbol_index = ref (-1) in
-            List.iteri (fun i s -> match s.details with
-            | Global _ -> (
-                symbol_index := i
-              )
-            | _ -> ()) m.symbols;
-
-          vu32_fixed (Int32.of_int !symbol_index)
+          let symbol_index = find_global_index index_ in 
+          vu32_fixed (Int32.of_int symbol_index)
       )
       ) !code_relocations
       
@@ -865,7 +894,8 @@ let encode m =
       | Function ->
         vu32 (func_index sym.name);
         if exists then (
-          string sym.name
+          string (if sym.name = "_start" then sym.name else "$" ^ sym.name)
+          (* string sym.name *)
         ) 
       | Import _ ->
         vu32 (func_index sym.name);
