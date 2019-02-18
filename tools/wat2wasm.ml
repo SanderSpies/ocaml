@@ -1,0 +1,1 @@
+print_endline "wat2wasm hello world"
