@@ -33,16 +33,16 @@ let name2 s =
 
 
 type code_relocation =
-  | R_WEBASSEMBLY_FUNCTION_INDEX_LEB of int32 * string
-  | R_WEBASSEMBLY_MEMORY_ADDR_LEB of int32 * Ast.var  
-  | R_WEBASSEMBLY_TYPE_INDEX_LEB of int32 * Ast.var
-  | R_WEBASSEMBLY_GLOBAL_INDEX_LEB of int32 * string
-  | R_WEBASSEMBLY_MEMORY_ADDR_SLEB of int32 * string
-  | R_WEBASSEMBLY_TABLE_INDEX_SLEB  of int32 * string
+  | R_WASM_FUNCTION_INDEX_LEB of int32 * string
+  | R_WASM_MEMORY_ADDR_LEB of int32 * Ast.var  
+  | R_WASM_TYPE_INDEX_LEB of int32 * Ast.var
+  | R_WASM_GLOBAL_INDEX_LEB of int32 * string
+  | R_WASM_MEMORY_ADDR_SLEB of int32 * string
+  | R_WASM_TABLE_INDEX_SLEB  of int32 * string
 
 type data_relocation =
-  | R_WEBASSEMBLY_TABLE_INDEX_I32 of int32 * string
-  | R_WEBASSEMBLY_MEMORY_ADDR_I32 of int32 * string
+  | R_WASM_TABLE_INDEX_I32 of int32 * string
+  | R_WASM_MEMORY_ADDR_I32 of int32 * string
   
 
 let encode_result = ref ""
@@ -287,14 +287,14 @@ let encode m =
         op 0x10;
         let p = pos s in
         let index = func_index symbol in
-        code_relocations := !code_relocations @ [R_WEBASSEMBLY_FUNCTION_INDEX_LEB (Int32.of_int p, symbol)];          
+        code_relocations := !code_relocations @ [R_WASM_FUNCTION_INDEX_LEB (Int32.of_int p, symbol)];          
         reloc_index index
       | CallIndirect (x, args) ->
         List.iter (fun i -> List.iter instr i) args;
         op 0x11;        
         let p2 = pos s in
         let x = find_type x in
-        code_relocations := !code_relocations @ [R_WEBASSEMBLY_TYPE_INDEX_LEB (Int32.of_int p2, x)];
+        code_relocations := !code_relocations @ [R_WASM_TYPE_INDEX_LEB (Int32.of_int p2, x)];
         reloc_index x;
         u8 0x00
       | Drop -> op 0x1a
@@ -308,12 +308,12 @@ let encode m =
       | GetGlobal x ->
         op 0x23;
         let p = pos s in
-        code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
+        code_relocations := !code_relocations @ [R_WASM_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
         reloc_index (find_global_index2 x)
       | SetGlobal x ->
         op 0x24;
         let p = pos s in
-        code_relocations := !code_relocations @ [R_WEBASSEMBLY_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
+        code_relocations := !code_relocations @ [R_WASM_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
         reloc_index (find_global_index2 x)
       | Load ({ty = I32Type; sz = None; _} as mo) -> op 0x28; memop mo
       | Load ({ty = I64Type; sz = None; _} as mo) -> op 0x29; memop mo
@@ -364,7 +364,7 @@ let encode m =
         | Import _
         | Function when s.name = symbol && not !found ->
           found := true;
-          code_relocations := !code_relocations @ [R_WEBASSEMBLY_TABLE_INDEX_SLEB (Int32.of_int p, symbol)];
+          code_relocations := !code_relocations @ [R_WASM_TABLE_INDEX_SLEB (Int32.of_int p, symbol)];
           
           vs32_fixed (func_index symbol)
         | _ -> ()
@@ -378,7 +378,7 @@ let encode m =
         List.iteri (fun symbol_index s -> match s.details with
         | Data { index; offset } when s.name = symbol  && not !found ->
             found := true;
-            code_relocations := !code_relocations @ [R_WEBASSEMBLY_MEMORY_ADDR_SLEB (Int32.of_int p, symbol)];
+            code_relocations := !code_relocations @ [R_WASM_MEMORY_ADDR_SLEB (Int32.of_int p, symbol)];
             if symbol = "caml_globals_inited" || symbol = "caml_backtrace_pos" || index = (-1l) then
               vs32_fixed offset
             else 
@@ -386,7 +386,7 @@ let encode m =
         | Import _
         | Function when s.name = symbol && not !found ->
           found := true;
-          code_relocations := !code_relocations @ [R_WEBASSEMBLY_TABLE_INDEX_SLEB (Int32.of_int p, symbol)];
+          code_relocations := !code_relocations @ [R_WASM_TABLE_INDEX_SLEB (Int32.of_int p, symbol)];
           vs32_fixed (func_index symbol)
         | _ -> ()
         ) m.symbols;
@@ -710,7 +710,7 @@ let encode m =
           match s.details with
            | Data { index; offset } when s.name = symbol -> 
             found := true;
-            data_relocations := !data_relocations @ [R_WEBASSEMBLY_MEMORY_ADDR_I32 (Int32.of_int p, symbol)];
+            data_relocations := !data_relocations @ [R_WASM_MEMORY_ADDR_I32 (Int32.of_int p, symbol)];
             if offset = (-1l) then
               u32 0l
             else
@@ -719,7 +719,7 @@ let encode m =
            | Import _ when s.name = symbol ->
             found := true;
             let symbol_index = func_index symbol in
-            data_relocations := !data_relocations @ [R_WEBASSEMBLY_TABLE_INDEX_I32 (Int32.of_int p, symbol)];        
+            data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)];        
             u32 symbol_index
            | Global _ when s.name = symbol ->
             failwith "Not handling a global here..."
@@ -731,7 +731,7 @@ let encode m =
         | FunctionLoc symbol -> 
           let p = pos s in
           let symbol_index = func_index symbol in
-          data_relocations := !data_relocations @ [R_WEBASSEMBLY_TABLE_INDEX_I32 (Int32.of_int p, symbol)];  
+          data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)];  
           u32 symbol_index        
         | Int32 i32 -> 
           u32 i32
@@ -759,8 +759,8 @@ let encode m =
       List.iteri (fun i r -> 
       (        
         match r with        
-        | R_WEBASSEMBLY_TABLE_INDEX_SLEB (offset, symbol_) 
-        | R_WEBASSEMBLY_MEMORY_ADDR_SLEB (offset, symbol_) -> ( 
+        | R_WASM_TABLE_INDEX_SLEB (offset, symbol_) 
+        | R_WASM_MEMORY_ADDR_SLEB (offset, symbol_) -> ( 
           let exists = ref false in
           List.iteri (fun symbol_index s -> match s.details with          
           | Data {index}  when s.name = symbol_ ->
@@ -784,12 +784,12 @@ let encode m =
             failwith ("Could not write relocation for:" ^ symbol_)
           )
         )
-        | R_WEBASSEMBLY_FUNCTION_INDEX_LEB (offset, symbol) ->
+        | R_WASM_FUNCTION_INDEX_LEB (offset, symbol) ->
           let symbol_index = func_symbol_index symbol in          
           u8 0;
           vu32 (Int32.sub offset !code_pos);
           vu32_fixed symbol_index;
-        | R_WEBASSEMBLY_MEMORY_ADDR_LEB (offset, index_) -> 
+        | R_WASM_MEMORY_ADDR_LEB (offset, index_) -> 
           (
             let symbol_index = ref (-1) in
             List.iteri (fun i s -> match s.details with
@@ -802,11 +802,11 @@ let encode m =
             vs32_fixed (Int32.of_int !symbol_index);
             vs32 4l
           )
-        | R_WEBASSEMBLY_TYPE_INDEX_LEB (offset, index) ->
+        | R_WASM_TYPE_INDEX_LEB (offset, index) ->
           u8 6;
           vu32 (Int32.sub offset !code_pos); 
           vu32_fixed index
-        | R_WEBASSEMBLY_GLOBAL_INDEX_LEB (offset, index_) ->
+        | R_WASM_GLOBAL_INDEX_LEB (offset, index_) ->
           u8 7;
           vu32 (Int32.sub offset !code_pos);
           let symbol_index = find_global_index index_ in 
@@ -823,13 +823,13 @@ let encode m =
       vu32 (Int32.of_int (List.length !data_relocations));    
       List.iter (fun r ->
         match r with      
-        | R_WEBASSEMBLY_TABLE_INDEX_I32 (offset, symbol) -> (            
+        | R_WASM_TABLE_INDEX_I32 (offset, symbol) -> (            
           let symbol_index = func_symbol_index symbol in
           u8 2;
           vu32 (Int32.sub offset !data_pos);          
           vu32 symbol_index;
         )
-        | R_WEBASSEMBLY_MEMORY_ADDR_I32 (offset, symbol_) -> (
+        | R_WASM_MEMORY_ADDR_I32 (offset, symbol_) -> (
             let symbol_index = ref (-1) in
             List.iteri (fun i s -> match s.details with
             | Data _ when s.name = symbol_ -> (
@@ -932,7 +932,7 @@ let encode m =
       let p = pos s in
       vu32 0l;
       patch_gap32 g (pos s - p); *)
-      vu32 1l;
+      vu32 2l;
       u8 5;
       let g = gap32 () in
       let p = pos s in
