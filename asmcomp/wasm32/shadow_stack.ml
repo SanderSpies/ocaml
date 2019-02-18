@@ -54,7 +54,7 @@ let add_shadow_stack w fns = (
       | Load {ty = F32Type; _} -> [Store {ty = F32Type; align = 0; offset = 0l; sz = None}]
       | _ -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
     in
-    if f.name = "_start" then 
+    if f.name = "caml_program" then 
       f
     else (
       let stackframe_size = (List.length f.locals + 1) * 4 in
@@ -169,7 +169,7 @@ let add_shadow_stack w fns = (
     )
   in
   let type_ t = 
-    if t.tname <> "_start" then 
+    if t.tname <> "caml_program" then 
       {t with 
         tdetails = FuncType ([], [I32Type])
       }

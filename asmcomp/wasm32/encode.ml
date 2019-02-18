@@ -894,7 +894,7 @@ let encode m =
       | Function ->
         vu32 (func_index sym.name);
         if exists then (
-          string (if sym.name = "_start" then sym.name else "$" ^ sym.name)
+          string (if sym.name = "caml_program" then sym.name else "$" ^ sym.name)
           (* string sym.name *)
         ) 
       | Import _ ->
@@ -962,7 +962,7 @@ let encode m =
       
       List.iteri(fun i f ->
         match f.details with
-        | Function when f.name = "_start" ->  (
+        | Function when f.name = "caml_program" ->  (
           u8 6; (* WASM_INIT_FUNCS *)
           let g = gap32 () in
           let p = pos s in

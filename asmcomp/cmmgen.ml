@@ -3461,9 +3461,6 @@ let entry_point namelist =
       namelist result in
       
   let fun_name = 
-    if Config.wasm32 then 
-      "_start"
-    else 
       "caml_program"
   in
   Cfunction {fun_name = fun_name;
