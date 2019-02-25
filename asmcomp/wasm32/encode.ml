@@ -588,7 +588,7 @@ let encode m =
 
     let import im =
       let {module_name; item_name; idesc} = im in
-      name module_name; name (name2 ("$" ^ Ast.string_of_name item_name)); import_desc idesc
+      name module_name; name (name2 (Ast.string_of_name item_name)); import_desc idesc
 
     let import_section ims =
       section 2 (vec import) ims (ims <> [])
@@ -637,7 +637,7 @@ let encode m =
     let export ex =
       let {name = n; edesc} = ex in
       (match edesc with 
-      | FuncExport _ -> name (name2 ("$" ^ Ast.string_of_name n))
+      | FuncExport _ -> name (name2 (Ast.string_of_name n))
       | _ -> name n);
       (* name n; *)
       export_desc edesc
@@ -851,7 +851,7 @@ let encode m =
 
     
     let counter = ref 0
-    let symbol sym =      
+    let symbol sym =   
       counter := !counter + 1;
       (match sym.details with
       | Import _
@@ -894,12 +894,13 @@ let encode m =
       | Function ->
         vu32 (func_index sym.name);
         if exists then (
-          string (if sym.name = "caml_program" then sym.name else "$" ^ sym.name)
+          string sym.name
           (* string sym.name *)
         ) 
       | Import _ ->
         vu32 (func_index sym.name);
-      | Data d -> (        
+      | Data d -> (       
+        print_endline "add data..."; 
         (if sym.name <> "" then        
         string sym.name
         else         
@@ -916,7 +917,7 @@ let encode m =
 
 
     let symbol_table (data2:data_part segment list) =
-      (* let size = ref 0l in
+        (* let size = ref 0l in
       List.iter (fun f -> 
         match f.details with
         | Data d -> size := Int32.add d.offset d.size
@@ -972,10 +973,10 @@ let encode m =
           patch_gap32 g (pos s - p)
         )
         | _ -> ()
-        ) m.symbols
+      ) m.symbols
 
     let linking_section data =
-      custom_section "linking" symbol_table data (data <> [])
+      custom_section "linking" symbol_table data true
 
     let name_section_impl m =       
       u8 1; (* functions *)

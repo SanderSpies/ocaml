@@ -1477,31 +1477,55 @@ partialclean::
 	rm -f boot/libcamlrun.a
 	rm -f boot/camlheader
 
-# wasm:
-# 	# ./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
-# 	export EMCC_WASM_BACKEND=1 
-# 	export EMCC_EXPERIMENTAL_USE_LLD=1
-# 	export EMCC_DEBUG=0
-# 	ar='llvm-ar' emconfigure ./configure -cc emcc -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
-# 	emmake make coldstart
-# 	emmake make opt-core
-# 	node boot/ocamlrun.js ./ocamlopt -o test.js test.ml -I stdlib
-# 	# ../binaryen/bin/s2wasm stdlib/libasmrun.a -o stdlib/libasmrun.wasm
-# 	# ../llvmwasm/llvm-build/bin/lld -flavor wasm -o test.wasm '-Lstdlib' '-L/usr/local/lib/ocaml'  '/tmp/camlstartup17433d.o' 'stdlib/std_exit.o' 'test.o' 'stdlib/stdlib.o' 'stdlib/libasmrun.a'
 
 libasmrun-wasm:
-	../wabt/bin/wat2wasm wasm-runtime/alloc.wat -r -o wasm-runtime/alloc.wasm
-	../wabt/bin/wat2wasm wasm-runtime/libasmrun.wat -r -o wasm-runtime/libasmrun.wasm
-	/llvmwasm/llvm-build/bin/lld -flavor wasm --relocatable wasm-runtime/alloc.wasm wasm-runtime/libasmrun.wasm -o libasmrun.wasm
+	../wabt/bin/wat2wasm wasm-runtime/all.wat -r -o wasm-runtime/foo.wasm
+	../wabt/bin/wat2wasm wasm-runtime/alloc.wat -r -o libasmrun.wasm
+	# ../wabt/bin/wat2wasm wasm-runtime/libasmrun.wat -r -o wasm-runtime/libasmrun.wasm
+	lld -flavor wasm --relocatable wasm-runtime/alloc.wasm wasm-runtime/foo.wasm -o libasmrun.wasm
 
 wasm32-all:
 	./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -target-wasm32
 	make coldstart	
 	make wasm32
 
-wasm32-test: libasmrun-wasm
+wasm32-test:
 	boot/ocamlrun ./ocamlopt -o test -dcmm test.ml -I stdlib -dstartup
 	
+# Temporary workaround for not having proper linking support in wabt
+
+wasm-runtime/startup.cmo: 
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/startup.ml
+
+startup_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/startup.cmo
+	$(CAMLC) -o $@ $^
+	boot/ocamlrun startup_compile
+
+wasm-runtime/minor_gc.cmo: 
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/minor_gc.ml
+
+minor_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/minor_gc.cmo
+	$(CAMLC) -o $@ $^
+	boot/ocamlrun minor_gc_compile
+
+wasm-runtime/gc_ctrl.cmo: 
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/gc_ctrl.ml
+
+gc_ctrl_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/gc_ctrl.cmo
+	$(CAMLC) -o $@ $^
+	boot/ocamlrun gc_ctrl_compile
+
+
+
+
+wasm32-test-foo:
+	rm -f asmcomp/emit.cmo asmcomp/encode.cmo asmcomp/asmgen.cmo
+	rm -f wasm-runtime/startup.c* && make startup_compile
+	rm -f wasm-runtime/gc_ctrl.c* && make gc_ctrl_compile
+	rm -f wasm-runtime/minor_gc.c* && make minor_gc_compile
+	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm -o libasmrun.wasm
+	make wasm32-test
+
 
 wasm32: 
 	rm -f asmcomp/typed_cmm.cmo

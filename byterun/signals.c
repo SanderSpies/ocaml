@@ -149,7 +149,7 @@ void caml_execute_signal(int signal_number, int in_signal_handler)
      the original signal mask */
   sigemptyset(&sigs);
   sigaddset(&sigs, signal_number);
-  sigprocmask(SIG_BLOCK, &sigs, &sigs);
+  sigprocmask(SIG_BLOCK, &sigs, NULL);
 #endif
 #if defined(NATIVE_CODE) && defined(WITH_SPACETIME)
   /* We record the signal handler's execution separately, in the same
