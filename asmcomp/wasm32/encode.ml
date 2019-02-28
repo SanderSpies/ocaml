@@ -768,7 +768,7 @@ let encode m =
             u8 4;
             vu32 (Int32.sub offset !code_pos);
             vs32_fixed (Int32.of_int symbol_index); 
-            if symbol_ = "caml_globals_inited" || symbol_ = "caml_backtrace_pos" then
+            if symbol_ = "caml_globals_inited" || symbol_ = "caml_backtrace_pos" || index = (-1l) then
               vs32 0l
             else 
               vs32 4l            

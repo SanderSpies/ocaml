@@ -1515,6 +1515,13 @@ gc_ctrl_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/gc_ctrl.cmo
 	$(CAMLC) -o $@ $^
 	boot/ocamlrun gc_ctrl_compile
 
+wasm-runtime/alloc.cmo: 
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/alloc.ml
+
+alloc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/alloc.cmo
+	$(CAMLC) -o $@ $^
+	boot/ocamlrun alloc_compile
+
 
 
 
@@ -1523,7 +1530,8 @@ wasm32-test-foo:
 	rm -f wasm-runtime/startup.c* && make startup_compile
 	rm -f wasm-runtime/gc_ctrl.c* && make gc_ctrl_compile
 	rm -f wasm-runtime/minor_gc.c* && make minor_gc_compile
-	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm -o libasmrun.wasm
+	rm -f wasm-runtime/alloc.c* && make alloc_compile
+	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm wasm-runtime/alloc.wasm -o libasmrun.wasm
 	make wasm32-test
 
 

@@ -25,12 +25,12 @@ let ast: Ast.module_ = {
         name = "caml_init_gc";
         ftype = "caml_init_gc";
         locals = [
-            ("caml_init_minor_heap_wsz", I32Type);
-            ("caml_init_heap_wsz", I32Type);
-            ("caml_init_heap_chunk_sz", I32Type);
-            ("caml_init_percent_free", I32Type);
-            ("caml_init_max_percent_free", I32Type);
-            ("caml_init_major_window", I32Type);
+            ("minor_size", I32Type);
+            ("major_size", I32Type);
+            ("major_incr", I32Type);
+            ("percent_fr", I32Type);
+            ("percent_m", I32Type);
+            ("window", I32Type);
         ];
         body = [
             Call ("caml_set_minor_heap_size", [[GetLocal 0l]])
