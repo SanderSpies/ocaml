@@ -1501,10 +1501,17 @@ startup_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/startup.cmo
 	$(CAMLC) -o $@ $^
 	boot/ocamlrun startup_compile
 
-wasm-runtime/minor_gc.cmo: 
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/minor_gc.ml
+wasm-runtime/major_gc.cmo: 
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/major_gc.ml
 
-minor_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/minor_gc.cmo
+wasm-runtime/minor_gc.cmo: wasm-runtime/major_gc.cmo
+	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -I wasm-runtime -c wasm-runtime/minor_gc.ml
+
+major_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/major_gc.cmo
+	$(CAMLC) -o $@ $^
+	boot/ocamlrun major_gc_compile
+
+minor_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/major_gc.cmo wasm-runtime/minor_gc.cmo
 	$(CAMLC) -o $@ $^
 	boot/ocamlrun minor_gc_compile
 
@@ -1522,15 +1529,19 @@ alloc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/alloc.cmo
 	$(CAMLC) -o $@ $^
 	boot/ocamlrun alloc_compile
 
-
+testingx:
+	ar='llvm-ar' emconfigure ./configure -cc emcc -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
+	emmake make coldstart
+	emmake make opt-core
 
 
 wasm32-test-foo:
 	rm -f asmcomp/emit.cmo asmcomp/encode.cmo asmcomp/asmgen.cmo
 	rm -f wasm-runtime/startup.c* && make startup_compile
 	rm -f wasm-runtime/gc_ctrl.c* && make gc_ctrl_compile
+	rm -f wasm-runtime/major_gc.c* && make major_gc_compile
 	rm -f wasm-runtime/minor_gc.c* && make minor_gc_compile
-	rm -f wasm-runtime/alloc.c* && make alloc_compile
+	rm -f wasm-runtime/alloc.c* && make alloc_compile	
 	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm wasm-runtime/alloc.wasm -o libasmrun.wasm
 	make wasm32-test
 

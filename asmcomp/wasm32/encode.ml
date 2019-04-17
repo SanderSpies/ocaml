@@ -207,9 +207,9 @@ let encode m =
           result := index
         )
       | _ -> ()) m.symbols;
-      if !result = (-1l) then 
-        assert false 
-      else 
+      if !result = (-1l) then (        
+        failwith ("Could not find global: " ^ index_)
+      ) else 
         !result
 
     let func_symbol_index symbol = 
