@@ -15,11 +15,8 @@
 #*                                                                        *
 #**************************************************************************
 
-if test "$EMSCRIPTEN"; then
-  cmd="$cc $cflags -v -o tst.js $* $ldflags $cclibs"
-else
-  cmd="$cc $cflags -v -o tst $* $ldflags $cclibs"
-fi
+
+cmd="$cc $cflags -v -o tst $* $ldflags $cclibs"
 
 if $verbose; then
   echo "runtest: $cmd" >&2
@@ -29,10 +26,49 @@ else
   $cmd 2> /dev/null || exit 100
 fi
 
-if test "$EMSCRIPTEN"; then
-  exec node ./tst.js
+if test "$WASM32"; then
+  /wasmtime/target/release/wasmtime ./tst
 else
   exec ./tst
 fi
+
+
+
+
+
+
+
+# #!/bin/sh
+
+# #**************************************************************************
+# #*                                                                        *
+# #*                                 OCaml                                  *
+# #*                                                                        *
+# #*            Xavier Leroy, projet Cristal, INRIA Rocquencourt            *
+# #*                                                                        *
+# #*   Copyright 1995 Institut National de Recherche en Informatique et     *
+# #*     en Automatique.                                                    *
+# #*                                                                        *
+# #*   All rights reserved.  This file is distributed under the terms of    *
+# #*   the GNU Lesser General Public License version 2.1, with the          *
+# #*   special exception on linking described in the file LICENSE.          *
+# #*                                                                        *
+# #**************************************************************************
+
+# cmd="$cc $cflags -v -o tst $*"
+# echo "Using command: $cmd"
+
+# if $verbose; then
+#   $cmd || echo 100
+# else
+#   $cmd 2> /dev/null || exit 100
+#   # $cmd
+# fi
+ 
+# if test "$WASM32"; then
+#   exec /wasmtime/target/release/wasmtime ./tst
+# else
+#   exec ./tst
+# fi
 
 

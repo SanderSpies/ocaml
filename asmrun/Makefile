@@ -20,8 +20,8 @@ LINKEDFILES=misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c array.c \
   compare.c ints.c floats.c str.c io.c extern.c intern.c hash.c sys.c \
   parsing.c gc_ctrl.c md5.c obj.c lexing.c printexc.c callback.c \
   weak.c compact.c finalise.c meta.c custom.c main.c globroots.c \
-  $(UNIX_OR_WIN32).c dynlink.c signals.c debugger.c startup_aux.c \
-  backtrace.c afl.c bigarray.c
+  $(UNIX_OR_WIN32).c dynlink.c startup_aux.c \
+  backtrace.c bigarray.c
 
 # The following variable stores the list of files for which dependencies
 # should be computed. It includes even the files that won't actually be
@@ -61,6 +61,7 @@ DFLAGS = $(CFLAGS) -g -DDEBUG
 PFLAGS=$(CFLAGS) -pg -DPROFILING $(NATIVECCPROFOPTS)
 ASMOBJS=$(ARCH).$(O)
 endif
+ASMOBJS=#FIXME!!!!
 
 IFLAGS=$(CFLAGS) -DCAML_INSTR
 PICFLAGS=$(CFLAGS) $(SHAREDCCCOMPOPTS)
@@ -71,16 +72,26 @@ ASPPFLAGS += -DMODEL_$(MODEL)
 endif
 
 COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
-  roots.$(O) signals.$(O) signals_asm.$(O) misc.$(O) freelist.$(O)	\
+  roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
   major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\
   ints.$(O) floats.$(O) str.$(O) array.$(O) io.$(O) extern.$(O)		\
   intern.$(O) hash.$(O) sys.$(O) parsing.$(O) gc_ctrl.$(O)		\
-  md5.$(O) obj.$(O) lexing.$(O) $(UNIX_OR_WIN32).$(O)	\
+  md5.$(O) obj.$(O) lexing.$(O)	\
   printexc.$(O) callback.$(O) weak.$(O) compact.$(O) finalise.$(O)	\
   custom.$(O) globroots.$(O) backtrace_prim.$(O) backtrace.$(O)		\
-  natdynlink.$(O) debugger.$(O) meta.$(O) dynlink.$(O)			\
+  natdynlink.$(O) meta.$(O) dynlink.$(O)			\
   clambda_checks.$(O) spacetime.$(O) spacetime_snapshot.$(O)		\
-  afl.$(O) bigarray.$(O)
+  bigarray.$(O)
+
+COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
+  roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
+  major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\
+  ints.$(O) floats.$(O) str.$(O) array.$(O) io.$(O) extern.$(O)		\
+  intern.$(O) hash.$(O) parsing.$(O) gc_ctrl.$(O)		\
+  md5.$(O) obj.$(O) \
+  printexc.$(O) callback.$(O) weak.$(O) compact.$(O) finalise.$(O)	\
+  custom.$(O) globroots.$(O) backtrace_prim.$(O) backtrace.$(O)		\
+  meta.$(O) bigarray.$(O)
 
 OBJS=$(COBJS) $(ASMOBJS)
 

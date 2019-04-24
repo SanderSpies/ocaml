@@ -465,9 +465,9 @@ case "$ocamlversion" in
 esac
 
 case "$ccfamily" in
-  clang-*)
-    common_cflags="-O2 -fno-strict-aliasing -fwrapv";
-    internal_cflags="$gcc_warnings";;
+  clang-*)    
+    common_cflags="-O2 -fno-strict-aliasing -fwrapv";;
+    # internal_cflags="";;
   gcc-[012]-*)
     # Some versions known to miscompile OCaml, e,g, 2.7.2.1, some 2.96.
     # Plus: C99 support unknown.
@@ -495,6 +495,8 @@ internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
 # Adjust according to target
 
 case "$cc,$target" in
+  clang,wasm32-unknown-wasi*)
+    common_cflags="--target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -Os -g";;
   *,*-*-rhapsody*)
     common_cppflags="-DSHRINKED_GNUC $common_cppflags"
     mathlib="";;
@@ -588,6 +590,7 @@ case "$cc,$target" in
     echo "#ifndef __PIC__" >> m.h
     echo "#  define ARCH_CODE32" >> m.h
     echo "#endif" >> m.h;;
+  
 esac
 
 # Configure compiler options to use in further tests.
@@ -688,10 +691,16 @@ else
                      echo "#define ARCH_SIXTYFOUR" >> m.h
                      set 4 4 8 2 8
                      arch64=true;;
-    *) err "Since datatype sizes cannot be guessed when cross-compiling,\n" \
-           "a hardcoded list is used but your architecture isn't known yet.\n" \
-           "You need to determine the sizes yourself.\n" \
-           "Please submit a bug report in order to expand the list." ;;
+    wasm32-unknown-wasi*)
+        inf "OK, this is a wasm 32 bit architecture."
+        echo "#undef ARCH_SIXTYFOUR" >> m.h
+        set 4 4 4 2 8
+        arch64=false;;
+    *)       
+      err "Since datatype sizes cannot be guessed when cross-compiling,\n" \
+          "a hardcoded list is used but your architecture isn't known yet.\n" \
+          "You need to determine the sizes yourself.\n" \
+          "Please submit a bug report in order to expand the list.";;    
   esac
 fi
 
@@ -716,7 +725,7 @@ echo "#define INT64_LITERAL(s) s ## LL" >> m.h
 
 # Determine endianness
 
-sh ./runtest endian.c
+cflags="$common_cflags $internal_cflags" sh ./runtest endian.c
 case $? in
   0) inf "This is a big-endian architecture."
      echo "#define ARCH_BIG_ENDIAN" >> m.h;;
@@ -753,7 +762,7 @@ case "$target" in
       echo "#define ARCH_ALIGN_DOUBLE" >> m.h
     fi;;
   *)
-    sh ./runtest dblalign.c
+    cflags="$common_cflags $internal_cflags" sh ./runtest dblalign.c
     case $? in
       0) inf "Doubles can be word-aligned."
          echo "#undef ARCH_ALIGN_DOUBLE" >> m.h;;
@@ -784,7 +793,7 @@ case "$target" in
     fi;;
   *-*-mingw*) true;; # Nothing is in config/m-nt.h so don't add anything.
   *)
-    sh ./runtest int64align.c
+    cflags="$common_cflags $internal_cflags" sh ./runtest int64align.c
     case $? in
       0) inf "64-bit integers can be word-aligned."
          echo "#undef ARCH_ALIGN_INT64" >> m.h;;
@@ -963,8 +972,10 @@ esac
 arch=none
 model=default
 system=unknown
+echo "TARGET $target"
 
 case "$target" in
+  wasm32-unknown-wasi*)         arch=wasm32; system=wasi;;
   i[3456]86-*-linux*)           arch=i386; system=linux_`sh ./runtest elf.c`;;
   i[3456]86-*-*bsd*)            arch=i386; system=bsd_`sh ./runtest elf.c`;;
   i[3456]86-*-solaris*)         if $arch64; then
@@ -1014,6 +1025,7 @@ case "$target" in
   x86_64-*-mingw*)              arch=amd64; system=mingw;;
   aarch64-*-linux*)             arch=arm64; system=linux;;
   x86_64-*-cygwin*)             arch=amd64; system=cygwin;;
+  
 esac
 
 # Some platforms exist both in 32-bit and 64-bit variants, not distinguished
@@ -1416,17 +1428,17 @@ if sh ./hasgot wait4;  then
   has_wait=yes
 fi
 
-if sh ./hasgot -i limits.h && sh ./runtest getgroups.c; then
+if sh ./hasgot -i limits.h && cflags="$common_cflags $internal_cflags" sh ./runtest getgroups.c; then
   inf "getgroups() found."
   echo "#define HAS_GETGROUPS" >> s.h
 fi
 
-if sh ./hasgot -i limits.h -i grp.h && sh ./runtest setgroups.c; then
+if sh ./hasgot -i limits.h -i grp.h && cflags="$common_cflags $internal_cflags" sh ./runtest setgroups.c; then
   inf "setgroups() found."
   echo "#define HAS_SETGROUPS" >> s.h
 fi
 
-if sh ./hasgot -i limits.h -i grp.h && sh ./runtest initgroups.c; then
+if sh ./hasgot -i limits.h -i grp.h && cflags="$common_cflags $internal_cflags" sh ./runtest initgroups.c; then
   inf "initgroups() found."
   echo "#define HAS_INITGROUPS" >> s.h
 fi
@@ -1437,7 +1449,7 @@ if sh ./hasgot -i termios.h &&
   echo "#define HAS_TERMIOS" >> s.h
 fi
 
-if sh ./runtest async_io.c; then
+if cflags="$common_cflags $internal_cflags" sh ./runtest async_io.c; then
   inf "Asynchronous I/O are supported."
   echo "#define HAS_ASYNC_IO" >> s.h
 fi
@@ -1931,7 +1943,7 @@ if $no_naked_pointers; then
 fi
 
 # Check for mmap support for huge pages and contiguous heap
-if sh ./runtest mmap-huge.c; then
+if cflags="$common_cflags $internal_cflags" sh ./runtest mmap-huge.c; then
     has_huge_pages=true
     echo "#define HAS_HUGE_PAGES" >>s.h
     echo "#define HUGE_PAGE_SIZE (4 * 1024 * 1024)" >>s.h
@@ -2093,6 +2105,7 @@ SYSLIB=-l\$(1)
 
 ### How to build a static library
 MKLIB=rm -f \$(1) && ${TOOLPREF}ar rc \$(1) \$(2) && ${TOOLPREF}ranlib \$(1)
+MKLIB=rm -f \$(1) && lld -flavor wasm --relocatable -o \$(1) \$(2)
 EOF
 config ARCH "$arch"
 config MODEL "$model"

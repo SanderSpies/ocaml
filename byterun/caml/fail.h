@@ -17,7 +17,11 @@
 #define CAML_FAIL_H
 
 #ifdef CAML_INTERNALS
+#ifdef WASM32
+#include "setjmp_wasm.h"
+#elif
 #include <setjmp.h>
+#endif
 #endif /* CAML_INTERNALS */
 
 #ifndef CAML_NAME_SPACE
@@ -42,7 +46,11 @@
 
 #ifdef POSIX_SIGNALS
 struct longjmp_buffer {
+#ifdef WASM32
+  intptr_t buf;
+#elif
   sigjmp_buf buf;
+#endif
 };
 #elif defined(__MINGW64__) && defined(__GNUC__) && __GNUC__ >= 4
 /* MPR#7638: issues with setjmp/longjmp in Mingw64, use GCC builtins instead */

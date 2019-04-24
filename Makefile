@@ -1545,6 +1545,11 @@ wasm32-test-foo:
 	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm wasm-runtime/alloc.wasm -o libasmrun.wasm
 	make wasm32-test
 
+watch:
+	while true; do \
+		inotifywait -e close_write,moved_to,create,modify -m ./wasm-runtime | \
+		rm -f wasm-runtime/minor_gc.c* && make minor_gc_compile; \
+	done
 
 wasm32: 
 	rm -f asmcomp/typed_cmm.cmo
@@ -1557,6 +1562,22 @@ wasm32:
 	# make libasmrun-wasm
 	make wasm32-test
 	# ../wabt/bin/wasm2wat test --inline-exports --inline-imports
+
+wasi-full: clean 
+	# clang --target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -Os -s -o example.wasm test.c
+	./configure -cc clang -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
+	make coldstart ocamlyacc
+	cp byterun/ocamlrun /usr/bin/
+	cp yacc/ocamlyacc /usr/bin/
+	make wasi
+
+wasi:
+	WASM32=true ./configure --target wasm32-unknown-wasi -target-bindir wasm-bin -cc clang -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -target-wasm32
+	# make caml/version.h
+	make wasm32
+	# make opt-core
+
+
 
 include .depend
 
