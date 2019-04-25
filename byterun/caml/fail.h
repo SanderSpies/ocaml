@@ -19,7 +19,8 @@
 #ifdef CAML_INTERNALS
 #ifdef WASM32
 #include "setjmp_wasm.h"
-#elif
+#endif
+#ifndef WASM32
 #include <setjmp.h>
 #endif
 #endif /* CAML_INTERNALS */
@@ -48,7 +49,8 @@
 struct longjmp_buffer {
 #ifdef WASM32
   intptr_t buf;
-#elif
+#endif
+#ifndef WASM32
   sigjmp_buf buf;
 #endif
 };

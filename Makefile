@@ -1565,7 +1565,7 @@ wasm32:
 
 wasi-full: clean 
 	# clang --target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -Os -s -o example.wasm test.c
-	./configure -cc clang -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
+	./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
 	make coldstart ocamlyacc
 	cp byterun/ocamlrun /usr/bin/
 	cp yacc/ocamlyacc /usr/bin/

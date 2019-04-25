@@ -108,9 +108,6 @@ let runtime_lib () =
     if !Clflags.gprofile
     then "libasmrunp" ^ ext_lib
     else 
-      if Config.wasm32 then 
-        "libasmrun.wasm"
-      else
         "libasmrun" ^ !Clflags.runtime_variant ^ ext_lib 
     in
   try
