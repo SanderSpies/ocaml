@@ -332,7 +332,8 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       let result = i @ [If ([], t, e)] in
       ignore(Stack.pop block_stack);
       result
-    | Cextcall (symbol, mt, _, _), _ -> [Call (symbol, el2)] @ (if mt = typ_void then [Drop] else [])
+    | Cextcall (symbol, mt, _, _), _ ->
+      [Call (symbol, el2)] @ (if (mt = typ_void && symbol <> "caml_modify") then [Drop] else [])
     | Craise _, _ -> [Call ("jsRaise_i32_i32", el2); Return]
     | _ -> 
       el @ (match operation with 
@@ -424,6 +425,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       else
         result
     | Ttuple ([Top (Cload _, _, _, _) as _el; Top (Cload _, _, _, _) as el2]) ->
+      (* TODO: properly fix me to handle 64 bit! *)
       print_endline "For now we are always treating 64bit as 32bit - so ignoring the first 4 bytes (most likely very wrong)";
       emit_expr el2
     | Ttuple el ->
@@ -598,9 +600,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
-  (* let w = !wasm_module in
-  let f = !functions in *)
+  (* let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in *)
+  let w = !wasm_module in
+  let f = !functions in
   let w = Linking.create_symbol_table w f in
   Encode.encode w;
   wasm_module := {

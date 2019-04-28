@@ -900,7 +900,6 @@ let encode m =
       | Import _ ->
         vu32 (func_index sym.name);
       | Data d -> (       
-        print_endline "add data..."; 
         (if sym.name <> "" then        
         string sym.name
         else         

@@ -92,6 +92,37 @@ let add_shadow_stack w fns = (
               (fix_body [] a)
               @ 
               (store a)
+              @ 
+              (
+                if String.length function_name > 5 && (String.sub function_name 0 5) = "caml_" then  
+                (* TODO: don't do this for DROP *)
+                (
+                  print_endline ("FUNC NAME:" ^ function_name);
+                  [GetGlobal "__stack_pointer"; 
+                  Const (I32 (I32.of_int_s ((i + 1) * 4))); 
+                  Binary (I32 I32Op.Sub)] 
+                  @                   
+                  (match List.hd (List.rev a) with 
+                  | GetLocal x ->
+                    print_endline " - get_local ";
+                    let ty = ref I32Type in
+                    List.iteri (fun i (_, ty_) ->
+                      if Int32.of_int i = x then
+                        ty := ty_
+                    ) f.locals;
+                    [Load {ty = !ty; align = 0; offset = 0l; sz = None}]
+                  | Load {ty = F32Type; _} -> 
+                    print_endline "- load";
+                  [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
+                  | Store _ -> (print_endline "XXX STORE"; [])
+                  | Drop -> (print_endline "XXX DROP"; [])
+                  | _ -> 
+                    (print_endline "-other";
+                    [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]))
+                )
+                else
+                  []
+              )
             ) args 
             in
             fix_body (result @ [Call (function_name, modified_args)]) remaining

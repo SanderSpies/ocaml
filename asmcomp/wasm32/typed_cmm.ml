@@ -228,11 +228,11 @@ let rec process env e =
             (ignore(process {env with stack = copied_stack; block_stack = copied_block_stack; needs_return = true} e);
             a @ [mach_to_wasm (Stack.top copied_stack)]
         )) [] el in       
-        let el = List.map (fun e -> 
+        (* let el = List.map (fun e -> 
           match e with 
           | Ctuple [_a; b] -> Ctuple [b] (* sanderspies: hack to work around int64 tuples for now *)
           | _ -> e
-        ) el in
+        ) el in *)
         (match o, el with        
         | Cextcall (s, mt, _, _), _ ->
             functions := !functions @ [(s, mach_to_wasm (if mt = typ_float then typ_float else typ_int), args)];
