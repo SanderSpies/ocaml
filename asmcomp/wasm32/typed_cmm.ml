@@ -67,7 +67,7 @@ let functions:func_result list ref = ref []
 
 let mach_to_wasm = function 
   | [||] -> []   
-  | [|Float|] -> [F32Type]   
+  | [|Float|] -> [F64Type]   
   | [|Val|]
   | [|Addr|]
   | [|Int|] -> 

@@ -272,6 +272,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           let add = match rt with 
           | [F32Type]
           | [I32Type] -> 4
+          | [F64Type] -> 8
           | _ -> assert false
           in
           total_size := !total_size + add;
@@ -346,8 +347,8 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | Cload(Word_int, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
       | Cload(Word_val, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
       | Cload(Single, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Double, _) -> [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Double_u, _) -> [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
+      | Cload(Double, _) -> [Load {ty = F64Type; align = 0; offset = 0l; sz = None}]
+      | Cload(Double_u, _) -> [Load {ty = F64Type; align = 0; offset = 0l; sz = None}]
       | Cstore (Byte_unsigned, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8}]
       | Cstore (Byte_signed, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8}]
       | Cstore (Sixteen_unsigned, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem16}]
@@ -356,9 +357,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | Cstore (Thirtytwo_signed, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
       | Cstore (Word_int, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
       | Cstore (Word_val, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Single, _) -> [Store {ty = F32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Double, _) -> [Store {ty = F32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Double_u, _) -> [Store {ty = F32Type; align = 0; offset = 0l; sz = None}]
+      | Cstore (Single, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
+      | Cstore (Double, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
+      | Cstore (Double_u, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
       | Caddv 
       | Caddi
       | Cadda -> [Binary (I32 I32Op.Add)]
@@ -424,10 +425,25 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       )
       else
         result
-    | Ttuple ([Top (Cload _, _, _, _) as _el; Top (Cload _, _, _, _) as el2]) ->
-      (* TODO: properly fix me to handle 64 bit! *)
-      print_endline "For now we are always treating 64bit as 32bit - so ignoring the first 4 bytes (most likely very wrong)";
+  | Ttuple [Tconst_natint high; Tconst_natint low] -> 
+    let i64 = Int64.add (Int64.shift_left (Int64.of_nativeint high) 32) (Int64.of_nativeint low)
+    in
+    [Const (I64 i64)]    
+  | Ttuple ([Top (Cload _, _, _, _) as el1; Top (Cload _, _, _, _) as el2]) ->
+      emit_expr el1
+      @
+      [
+        Convert (I64 I64Op.ExtendUI32);
+        Const (I32 32l);
+        Binary (I64 I64Op.Shl)
+      ]
+      @
       emit_expr el2
+      @
+      [
+        Convert (I64 I64Op.ExtendUI32);
+        Binary (I64 I64Op.Add)
+      ]
     | Ttuple el ->
       List.fold_left (fun lst f -> 
         lst @ (emit_expr f)
