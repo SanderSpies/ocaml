@@ -20,7 +20,7 @@ LINKEDFILES=misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c array.c \
   compare.c ints.c floats.c str.c io.c extern.c intern.c hash.c sys.c \
   parsing.c gc_ctrl.c md5.c obj.c lexing.c printexc.c callback.c \
   weak.c compact.c finalise.c meta.c custom.c main.c globroots.c \
-  $(UNIX_OR_WIN32).c dynlink.c startup_aux.c \
+  $(UNIX_OR_WIN32).c dynlink.c signals.c startup_aux.c \
   backtrace.c bigarray.c
 
 # The following variable stores the list of files for which dependencies
