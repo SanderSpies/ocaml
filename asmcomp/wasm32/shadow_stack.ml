@@ -23,6 +23,9 @@ open Wasm_types
  * is most likely room for improvement here.
  *)
 
+let is_external_call name =
+  String.length name > 5 && (String.sub name 0 5) = "caml_"
+
 let create_stack_frame stackframe_size = 
   let local_sp = 0l in
   let move_stack_pointer = [
@@ -42,17 +45,22 @@ let create_stack_frame stackframe_size =
 
 let add_shadow_stack w fns = (
   let func (f:Ast.func) = 
-    let store el = 
-      match List.hd (List.rev el) with 
-      | GetLocal x ->
-        let ty = ref I32Type in
-        List.iteri (fun i (_, ty_) ->
-          if Int32.of_int i = x then
-            ty := ty_
-        ) f.locals;
-        [Store {ty = !ty; align = 0; offset = 0l; sz = None}]
-      | Load {ty = F32Type; _} -> [Store {ty = F32Type; align = 0; offset = 0l; sz = None}]
-      | _ -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
+    let arg_type name index = (
+      let found_function = List.find_opt (fun (f_name, _, _) -> 
+        f_name = name
+      ) fns in
+      match found_function with 
+      | Some (_fname, _, args) -> (
+        (match (List.nth_opt args index) with
+        | Some [I64Type] -> I64Type
+        | Some [I32Type] -> I32Type
+        | Some [F32Type] -> F32Type
+        | Some [F64Type] -> F64Type
+        | Some _ -> assert false
+        | None -> I32Type)
+      )
+      | None -> I32Type
+    )
     in
     if f.name = "caml_program" then 
       f
@@ -77,7 +85,7 @@ let add_shadow_stack w fns = (
              @ 
             (fix_body [] a) 
             @ 
-            (store a)
+            [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]
           ) (List.rev (List.tl rev_args))
           @ 
           [fix_body [] (List.hd rev_args)]
@@ -91,10 +99,10 @@ let add_shadow_stack w fns = (
               @
               (fix_body [] a)
               @ 
-              (store a)
+              [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
               @ 
               (
-                if String.length function_name > 5 && (String.sub function_name 0 5) = "caml_" then  
+                if is_external_call function_name then  
                 (* TODO: don't do this for DROP *)
                 (
                   [GetGlobal "__stack_pointer"; 
@@ -110,6 +118,7 @@ let add_shadow_stack w fns = (
                     ) f.locals;
                     [Load {ty = !ty; align = 0; offset = 0l; sz = None}]
                   | Load {ty = F32Type; _} -> [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
+                  | Const (I64 _) -> [Load {ty = I64Type; align = 0; offset = 0l; sz = None}]
                   | _ -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}])
                 )
                 else
@@ -192,7 +201,7 @@ let add_shadow_stack w fns = (
     )
   in
   let type_ t = 
-    if t.tname <> "caml_program" && (String.length t.tname > 5 && (String.sub t.tname 0 5) = "caml_") = false  then     
+    if t.tname <> "caml_program" && (is_external_call t.tname) = false  then     
       {t with 
         tdetails = FuncType ([], [I32Type])
       }
@@ -218,7 +227,7 @@ let add_shadow_stack w fns = (
     types = List.map type_ w.types;
     symbols = List.map symbol w.symbols;  
   }, List.map (fun (name, rt, args) -> 
-    if (String.length name > 5 && (String.sub name 0 5) = "caml_") = false then
+    if (is_external_call name) = false then
       (name, [I32Type], []) 
     else
       (name, rt, args)
