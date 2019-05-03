@@ -240,6 +240,20 @@ let begin_assembly () = (
       {
         name = "caml_alloc";
         details = Import ([I32Type; I32Type], [I32Type])
+      };
+      (*
+        TEMPORARY HACK:
+          - caml_int64_compare_unboxed
+          - caml_int64_float_of_bits_unboxed
+        should be removed once int 64 is properly handled.
+      *)
+      {
+        name = "caml_int64_compare_unboxed";
+        details = Import ([I64Type; I64Type], [I32Type])
+      };
+      {
+        name = "caml_int64_float_of_bits_unboxed";
+        details = Import ([I64Type], [F64Type])
       }
     ]
   };
