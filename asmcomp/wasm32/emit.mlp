@@ -232,6 +232,14 @@ let begin_assembly () = (
           size =  4l;
           offset = 1l;
         })
+      };
+      {
+        name = "caml_modify";
+        details = Import ([I32Type; I32Type], [])
+      }; 
+      {
+        name = "caml_alloc";
+        details = Import ([I32Type; I32Type], [I32Type])
       }
     ]
   };
@@ -425,7 +433,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       )
       else
         result
-  | Ttuple [Tconst_natint high; Tconst_natint low] -> 
+  | Ttuple [Tconst_natint high; Tconst_natint low] ->
     let i64 = Int64.add (Int64.shift_left (Int64.of_nativeint high) 32) (Int64.of_nativeint low)
     in
     [Const (I64 i64)]    

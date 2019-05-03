@@ -1552,8 +1552,8 @@ watch:
 	done
 
 wasm32: 
-	rm -f asmcomp/typed_cmm.cmo
-	rm -f asmcomp/linking.cmo	
+	# rm -f asmcomp/typed_cmm.cmo
+	# rm -f asmcomp/linking.cmo	
 	rm -f asmcomp/shadow_stack.cmo
 	rm -f asmcomp/emit.cmo
 	rm -f asmcomp/encode.cmo
@@ -1577,6 +1577,9 @@ wasi:
 	make wasm32
 	make replace
 	# make opt-core
+
+wasi-fast: 
+	make wasm32 replace
 
 replace:
 	/workspace/wabt/bin/wasm2wat test --no-check -o test8.wat

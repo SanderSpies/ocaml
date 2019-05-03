@@ -354,8 +354,8 @@ config WASM_LINKER_RELOCATABLE ""
 if $wasm32; then
   echo "#define WASM32" >> m.h
   config WASM32 true
-  config WASM_LINKER "$LLVM_HOME/bin/lld -flavor wasm --verbose --no-entry --stack-first -z stack-size=1024 --allow-undefined --gc-sections --export-table"
-  config WASM_LINKER_RELOCATABLE "$LLVM_HOME/bin/lld -flavor wasm --stack-first -z stack-size=1024 --allow-undefined --verbose --relocatable "
+  config WASM_LINKER "$LLVM_HOME/bin/lld -flavor wasm --no-entry --stack-first -z stack-size=1024 --allow-undefined --gc-sections --export-table"
+  config WASM_LINKER_RELOCATABLE "$LLVM_HOME/bin/lld -flavor wasm --stack-first -z stack-size=1024 --allow-undefined --relocatable "
 fi
 
 # Determine the system type
