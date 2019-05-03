@@ -638,9 +638,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  (* let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in *)
-  let w = !wasm_module in
-  let f = !functions in
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  (* let w = !wasm_module in
+  let f = !functions in *)
   let w = Linking.create_symbol_table w f in
   Encode.encode w;
   wasm_module := {

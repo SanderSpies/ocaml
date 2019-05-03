@@ -104,7 +104,6 @@ let create_symbol_table m fti = (
                   details = Import (List.fold_left (fun a i -> a @ i) [] args, Ast.Types.(match rt with [] -> [I32Type] | _ -> rt))
                 }])
             | None -> 
-              
               code_symbols := !code_symbols @ [{
                 name = symbol;
                 details = Import ([], [])
