@@ -101,7 +101,7 @@ let create_symbol_table m fti = (
               else 
                  [{
                   name = symbol;
-                  details = Import (List.fold_left (fun a i -> a @ i) [] args, Ast.Types.(match rt with [F32Type] -> [F32Type] | _ -> [I32Type]))
+                  details = Import (List.fold_left (fun a i -> a @ i) [] args, Ast.Types.(match rt with [] -> [I32Type] | _ -> rt))
                 }])
             | None -> 
               
