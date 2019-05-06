@@ -817,6 +817,8 @@ natdynlinkopts=""
 
 if $with_sharedlibs; then
   case "$target" in
+    wasm32-unknown-wasi*)
+      ldflags="$ldflags -Wl,--allow-undefined";;
     *-*-cygwin*)
       mksharedlib="$flexlink"
       mkmaindll="$flexlink -maindll"
