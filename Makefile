@@ -56,7 +56,6 @@ endif
 
 CAMLRUN ?= boot/ocamlrun
 CAMLYACC ?= boot/ocamlyacc
-
 include stdlib/StdlibModules
 
 CAMLC=$(CAMLRUN) boot/ocamlc -g -nostdlib -I boot -use-prims byterun/primitives
@@ -392,9 +391,7 @@ utils/config.ml: utils/config.mlp config/Makefile Makefile
 	    $(call SUBST,WITH_SPACETIME) \
 	    $(call SUBST,ENABLE_CALL_COUNTS) \
 	    $(call SUBST,FLAT_FLOAT_ARRAY) \
-		$(call SUBST,WASM32) \
-		$(call SUBST,WASM_LINKER) \
-		$(call SUBST,WASM_LINKER_RELOCATABLE) \
+			$(call SUBST,WASM32) \
 	    $< > $@
 
 ifeq "$(UNIX_OR_WIN32)" "unix"
@@ -832,13 +829,6 @@ ocamlopt: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma \
 partialclean::
 	rm -f ocamlopt
 
-# ocamlwasm: compilerlibs/ocamlcommon.cma compilerlibs/ocamloptcomp.cma \
-#           $(WASMSTART)
-# 	$(CAMLC) $(LINKFLAGS) -o $@ $^
-
-# partialclean::
-# 	rm -f ocamlwasm
-
 # The toplevel
 
 compilerlibs/ocamltoplevel.cma: $(TOPLEVEL)
@@ -941,7 +931,6 @@ ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
               $(WASMSTART:.cmo=.cmx)
 	$(CAMLOPT) $(LINKFLAGS) -o $@ $^
 	
-
 partialclean::
 	rm -f ocamlopt.opt
 
@@ -1491,59 +1480,6 @@ wasm32-all:
 
 wasm32-test:
 	boot/ocamlrun ./ocamlopt -o test -dcmm test.ml -I stdlib -dstartup
-	
-# Temporary workaround for not having proper linking support in wabt
-
-wasm-runtime/startup.cmo: 
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/startup.ml
-
-startup_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/startup.cmo
-	$(CAMLC) -o $@ $^
-	boot/ocamlrun startup_compile
-
-wasm-runtime/major_gc.cmo: 
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/major_gc.ml
-
-wasm-runtime/minor_gc.cmo: wasm-runtime/major_gc.cmo
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -I wasm-runtime -c wasm-runtime/minor_gc.ml
-
-major_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/major_gc.cmo
-	$(CAMLC) -o $@ $^
-	boot/ocamlrun major_gc_compile
-
-minor_gc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/major_gc.cmo wasm-runtime/minor_gc.cmo
-	$(CAMLC) -o $@ $^
-	boot/ocamlrun minor_gc_compile
-
-wasm-runtime/gc_ctrl.cmo: 
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/gc_ctrl.ml
-
-gc_ctrl_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/gc_ctrl.cmo
-	$(CAMLC) -o $@ $^
-	boot/ocamlrun gc_ctrl_compile
-
-wasm-runtime/alloc.cmo: 
-	$(CAMLC) $(COMPFLAGS) wasmcomp/encode.cmo -c wasm-runtime/alloc.ml
-
-alloc_compile: $(COMMON) $(MIDDLE_END) $(WASMCOMP) wasm-runtime/alloc.cmo
-	$(CAMLC) -o $@ $^
-	boot/ocamlrun alloc_compile
-
-testingx:
-	ar='llvm-ar' emconfigure ./configure -cc emcc -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
-	emmake make coldstart
-	emmake make opt-core
-
-
-wasm32-test-foo:
-	rm -f asmcomp/emit.cmo asmcomp/encode.cmo asmcomp/asmgen.cmo
-	rm -f wasm-runtime/startup.c* && make startup_compile
-	rm -f wasm-runtime/gc_ctrl.c* && make gc_ctrl_compile
-	rm -f wasm-runtime/major_gc.c* && make major_gc_compile
-	rm -f wasm-runtime/minor_gc.c* && make minor_gc_compile
-	rm -f wasm-runtime/alloc.c* && make alloc_compile	
-	lld -flavor wasm --relocatable wasm-runtime/startup.wasm wasm-runtime/gc_ctrl.wasm wasm-runtime/minor_gc.wasm wasm-runtime/alloc.wasm -o libasmrun.wasm
-	make wasm32-test
 
 watch:
 	while true; do \
@@ -1584,23 +1520,5 @@ wasi-fast:
 replace:
 	/workspace/wabt/bin/wasm2wat test --no-check -o test8.wat
 	sed 's/local.get/get_local/g; s/local.set/set_local/g; s/local.tee/tee_local/g; s/global.get/get_global/g; s/global.set/set_global/g; s/global.tee/tee_global/g; s/convert_i32_u/convert_u\/i32/g; s/convert_i32_s/convert_s\/i32/g; s/trunc_f64_u/trunc_u\/f64/g; s/trunc_f64_s/trunc_s\/f64/g; s/reinterpret_i64/reinterpret\/i64/g; s/reinterpret_f64/reinterpret\/f64/g; s/extend_i32_s/extend_s\/i32/g; s/extend_i32_u/extend_u\/i32/g; s/convert_i64_s/convert_s\/i64/g; s/wrap_i64/wrap\/i64/g; s/demote_f64/demote\/f64/g; s/promote_f32/promote\/f32/g; s/trunc_f32_u/trunc_u\/f32/g;  s/funcref/anyfunc/g;' test8.wat > test9.wat
-	
-
-	
-
 
 include .depend
-
-# $(MAKE) checkstack
-# 	$(MAKE) runtime
-# 	$(MAKE) core
-# 	$(MAKE) ocaml
-# 	$(MAKE) opt-core
-# 	$(MAKE) ocamlc.opt
-# 	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC) ocamltest
-# 	$(MAKE) ocamlopt.opt
-# 	$(MAKE) otherlibrariesopt
-# 	$(MAKE) ocamllex.opt ocamltoolsopt ocamltoolsopt.opt $(OCAMLDOC_OPT) \
-# 	  ocamltest.opt
-
-	

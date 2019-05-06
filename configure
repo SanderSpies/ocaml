@@ -348,14 +348,10 @@ config PROGRAMS_MAN_SECTION "$programs_man_section"
 config LIBRARIES_MAN_SECTION "$libraries_man_section"
 
 config WASM32 false
-config WASM_LINKER ""
-config WASM_LINKER_RELOCATABLE ""
 
 if $wasm32; then
   echo "#define WASM32" >> m.h
   config WASM32 true
-  config WASM_LINKER "$LLVM_HOME/bin/lld -flavor wasm --no-entry --stack-first -z stack-size=1024 --allow-undefined --gc-sections --export-table"
-  config WASM_LINKER_RELOCATABLE "$LLVM_HOME/bin/lld -flavor wasm --stack-first -z stack-size=1024 --allow-undefined --relocatable "
 fi
 
 # Determine the system type
@@ -496,7 +492,8 @@ internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
 
 case "$cc,$target" in
   clang,wasm32-unknown-wasi*)
-    common_cflags="--target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -Os -g";;
+    common_cflags="--target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -v -Os -g"
+    TOOLPREF=llvm-;;
   *,*-*-rhapsody*)
     common_cppflags="-DSHRINKED_GNUC $common_cppflags"
     mathlib="";;
@@ -1133,7 +1130,6 @@ fi
 config ARCMD "${TOOLPREF}ar"
 
 if $wasm32; then
-  config RANLIB ""
   config RANLIBCMD ""
 fi
 
@@ -2100,21 +2096,13 @@ config SUPPORTS_SHARED_LIBRARIES "$shared_libraries_supported"
 config SHAREDCCCOMPOPTS "$sharedcccompopts"
 config MKSHAREDLIBRPATH "$mksharedlibrpath"
 config NATDYNLINKOPTS "$natdynlinkopts"
-if $wasm32; then
-cat >> Makefile <<EOF
-SYSLIB=-l\$(1)
 
-### How to build a static library
-MKLIB=rm -f \$(1) && lld -flavor wasm --relocatable -o \$(1) \$(2)
-EOF
-else
 cat >> Makefile <<EOF
 SYSLIB=-l\$(1)
 
 ### How to build a static library
 MKLIB=rm -f \$(1) && ${TOOLPREF}ar rc \$(1) \$(2) && ${TOOLPREF}ranlib \$(1)
 EOF
-fi
 
 config ARCH "$arch"
 config MODEL "$model"
