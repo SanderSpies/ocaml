@@ -351,6 +351,7 @@ config WASM32 false
 
 if $wasm32; then
   echo "#define WASM32" >> m.h
+  echo "#define HAS_UNISTD" >> s.h
   config WASM32 true
 fi
 
