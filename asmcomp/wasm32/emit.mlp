@@ -77,108 +77,106 @@ let wasm_module = ref {
     name = "jsRaise_i32_i32";
     ftype = "type_";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
-  };
-  {
-    name = "caml_secure_getenv";
-    ftype = "type_";
-    locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
-    no_of_args = 1
-  };
+  };  
   {
     name = "caml_callback_exn";
     ftype = "i32->i32->i32";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   };
   {
     name = "caml_init_signals";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
-    body = [];
+    body = [Unreachable; ];
     no_of_args = 1
   };
   {
     name = "caml_debugger_init";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
-    body = [];
-    no_of_args = 1
-  };
-  {
-    name = "caml_executable_name";
-    ftype = "re_i32";
-    locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
-    no_of_args = 1
-  };
-  {
-    name = "caml_search_exe_in_path";
-    ftype = "type_";
-    locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; ];
     no_of_args = 1
   };
   {
     name = "setjmp";
     ftype = "type_";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   };
   {
     name = "caml_start_program";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   };
   {
     name = "Saved_return_address";
     ftype = "type_";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   };  
   {
     name = "Callback_link";
     ftype = "type_";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   }; 
   {
     name = "caml_raise_exception";
     ftype = "raise_i32_ftype";
     locals = [("temp", I32Type)];
-    body = [];
-    no_of_args = 1
-  };
-  {
-    name = "caml_write_fd";
-    ftype = "i32->i32->i32->i32->i32";
-    locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
-    no_of_args = 1
-  };
-  {
-    name = "caml_read_fd";
-    ftype = "i32->i32->i32->i32->i32";
-    locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; ];
     no_of_args = 1
   };
   {
     name = "caml_callback2_exn";
     ftype = "i32->i32->i32->i32";
     locals = [("temp", I32Type)];
-    body = [Const (I32 0l)];
+    body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
-  }
-
+  };
+  {
+    name = "geteuid";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Unreachable; Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "getuid";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Unreachable; Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "getegid";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Unreachable; Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "getgid";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Unreachable; Const (I32 0l)];
+    no_of_args = 1
+  };
+(* 
+  (import "env" "geteuid" (func $geteuid (type 10)))
+  (import "env" "getuid" (func $getuid (type 10)))
+  (import "env" "getegid" (func $getegid (type 10)))
+  (import "env" "getgid" (func $getgid (type 10)))
+*)
 
   ];
   start = None;
@@ -191,10 +189,6 @@ let wasm_module = ref {
     details = Function
   };
   {
-    name = "caml_secure_getenv";
-    details = Function
-  };
-  {
     name = "caml_callback_exn";
     details = Function
   };
@@ -206,14 +200,7 @@ let wasm_module = ref {
     name = "caml_debugger_init";
     details = Function
   };
-  {
-    name = "caml_executable_name";
-    details = Function
-  };
-  {
-    name = "caml_search_exe_in_path";
-    details = Function
-  };
+  
   {
     name = "setjmp";
     details = Function
@@ -234,14 +221,22 @@ let wasm_module = ref {
     name = "caml_raise_exception";
     details = Function
   };
-  {
-    name = "caml_write_fd";
+   {
+    name = "geteuid";
     details = Function
   };
   {
-    name = "caml_read_fd";
+    name = "getuid";
+    details = Function
+  }; 
+  {
+    name = "getegid";
     details = Function
   };
+  {
+    name = "getgid";
+    details = Function
+  }; 
   {
     name = "caml_callback2_exn";
     details = Function
