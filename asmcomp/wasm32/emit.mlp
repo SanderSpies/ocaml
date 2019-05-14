@@ -52,6 +52,11 @@ type block_stack = block_stack_item Stack.t
 
 let block_stack : block_stack = Stack.create ()
 
+
+let name s =
+  try Utf8.decode s with Utf8.Utf8 ->
+    failwith "invalid UTF-8 encoding"
+
 (* the resulting wasm module *)
 let wasm_module = ref {
   types = [];
@@ -63,20 +68,187 @@ let wasm_module = ref {
     (* TODO: this needs to be improved when doing GC *)
     mtype = MemoryType {min = 100l; max = Some 100l}
   }];
-  funcs = [];
+  (*  
+  (import "env" "caml_write_fd" (func $caml_write_fd (type 1))) (* (type (;1;) (func (param i32 i32 i32 i32) (result i32))) *)
+  (import "env" "caml_read_fd" (func $caml_read_fd (type 1))) (* (type (;1;) (func (param i32 i32 i32 i32) (result i32))) *)
+  (import "env" "caml_callback2_exn" (func $caml_callback2_exn (type 2))) (*(type (;2;) (func (param i32 i32 i32) (result i32))) *) 
+  *)
+  funcs = [{
+    name = "jsRaise_i32_i32";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_secure_getenv";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_callback_exn";
+    ftype = "i32->i32->i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_init_signals";
+    ftype = "empty_type";
+    locals = [("temp", I32Type)];
+    body = [];
+    no_of_args = 1
+  };
+  {
+    name = "caml_debugger_init";
+    ftype = "empty_type";
+    locals = [("temp", I32Type)];
+    body = [];
+    no_of_args = 1
+  };
+  {
+    name = "caml_executable_name";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_search_exe_in_path";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "setjmp";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_start_program";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "Saved_return_address";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };  
+  {
+    name = "Callback_link";
+    ftype = "type_";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  }; 
+  {
+    name = "caml_raise_exception";
+    ftype = "raise_i32_ftype";
+    locals = [("temp", I32Type)];
+    body = [];
+    no_of_args = 1
+  };
+  {
+    name = "caml_write_fd";
+    ftype = "i32->i32->i32->i32->i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_read_fd";
+    ftype = "i32->i32->i32->i32->i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  };
+  {
+    name = "caml_callback2_exn";
+    ftype = "i32->i32->i32->i32";
+    locals = [("temp", I32Type)];
+    body = [Const (I32 0l)];
+    no_of_args = 1
+  }
+
+
+  ];
   start = None;
   elems = [];
   data = [];
   imports = [];
   exports = [];
-  symbols = [];
+  symbols = [{
+    name = "jsRaise_i32_i32";
+    details = Function
+  };
+  {
+    name = "caml_secure_getenv";
+    details = Function
+  };
+  {
+    name = "caml_callback_exn";
+    details = Function
+  };
+  {
+    name = "caml_init_signals";
+    details = Function
+  };
+  {
+    name = "caml_debugger_init";
+    details = Function
+  };
+  {
+    name = "caml_executable_name";
+    details = Function
+  };
+  {
+    name = "caml_search_exe_in_path";
+    details = Function
+  };
+  {
+    name = "setjmp";
+    details = Function
+  };
+  {
+    name = "caml_start_program";
+    details = Function
+  };
+  {
+    name = "Saved_return_address";
+    details = Function
+  };
+  {
+    name = "Callback_link";
+    details = Function
+  };
+  {
+    name = "caml_raise_exception";
+    details = Function
+  };
+  {
+    name = "caml_write_fd";
+    details = Function
+  };
+  {
+    name = "caml_read_fd";
+    details = Function
+  };
+  {
+    name = "caml_callback2_exn";
+    details = Function
+  }];
 }
 
 let unique_name_counter = ref 0
-
-let name s =
-  try Utf8.decode s with Utf8.Utf8 ->
-    failwith "invalid UTF-8 encoding"
 
 let global_offset = ref 0
 
@@ -172,7 +344,11 @@ let begin_assembly () = (
       {tname = "jsTryWithType"; tdetails = Types.FuncType ([Types.I32Type;Types.I32Type;Types.I32Type], [])};
       {tname = "type_"; tdetails = Types.FuncType ([Types.I32Type], [Types.I32Type])};
       {tname = "empty_type"; tdetails = Types.FuncType ([], [])};
-      {tname = "raise_i32_ftype"; tdetails = Types.FuncType ([Types.I32Type], [])}
+      {tname = "raise_i32_ftype"; tdetails = Types.FuncType ([Types.I32Type], [])};
+      {tname = "re_i32"; tdetails = Types.FuncType ([], [Types.I32Type])};
+      {tname = "i32->i32->i32"; tdetails = Types.FuncType ([Types.I32Type; Types.I32Type], [Types.I32Type])};
+      {tname = "i32->i32->i32->i32->i32"; tdetails = Types.FuncType ([Types.I32Type; Types.I32Type; Types.I32Type; Types.I32Type; ], [Types.I32Type])};
+      {tname = "i32->i32->i32->i32"; tdetails = Types.FuncType ([Types.I32Type; Types.I32Type; Types.I32Type; ], [Types.I32Type])}
     ];
     data =  [
       {
@@ -193,16 +369,16 @@ let begin_assembly () = (
       }
     ];
     imports = [
-      {
+      (* {
         module_name = name "env";
         item_name = name "tryWith";
         idesc = FuncImport "jsTryWithType"
-      };
-      {
+      }; *)
+      (* {
         module_name = name "env";
         item_name = name "jsRaise_i32_i32";
         idesc = FuncImport "type_"
-      };
+      }; *)
     ];
     exports = [
       {
@@ -254,7 +430,14 @@ let begin_assembly () = (
       {
         name = "caml_int64_float_of_bits_unboxed";
         details = Import ([I64Type], [F64Type])
-      }
+      };
+      (* TEMPORARY HACK:
+        - apparently wasi wants this to be i32 * i64, while we expect it to be i32 * i32
+      *)
+      (* {
+        name = "lseek";
+        details = Import ([I32Type; I64Type; I32Type], [I64Type])
+      } *)
     ]
   };
 )
@@ -638,9 +821,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
-  (* let w = !wasm_module in
-  let f = !functions in *)
+  (* let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in *)
+  let w = !wasm_module in
+  let f = !functions in
   let w = Linking.create_symbol_table w f in
   Encode.encode w;
   wasm_module := {
@@ -653,13 +836,22 @@ let end_assembly () =
       (* TODO: this needs to be improved when doing GC *)
       mtype = MemoryType {min = 100000l; max = Some 100000l}
     }];
-    funcs = [];
+    funcs = [{
+      name = "jsRaise_i32_i32";
+      ftype = "type_";
+      locals = [("temp", I32Type)];
+      body = [Const (I32 0l)];
+      no_of_args = 1
+    }];
     start = None;
     elems = [];
     data = [];
     imports = [];
     exports = [];
-    symbols = [];
+    symbols = [{
+      name = "jsRaise_i32_i32";
+      details = Function
+    }];
   }
 
 let data dl =

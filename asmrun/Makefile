@@ -72,7 +72,7 @@ ASPPFLAGS += -DMODEL_$(MODEL)
 endif
 
 COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
-  roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
+  roots.$(O) signals.$(O) signals_asm.$(O) misc.$(O) freelist.$(O)	\
   major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\
   ints.$(O) floats.$(O) str.$(O) array.$(O) io.$(O) extern.$(O)		\
   intern.$(O) hash.$(O) sys.$(O) parsing.$(O) gc_ctrl.$(O)		\
@@ -87,7 +87,7 @@ COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
   roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
   major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\
   ints.$(O) floats.$(O) str.$(O) array.$(O) io.$(O) extern.$(O)		\
-  intern.$(O) hash.$(O) parsing.$(O) gc_ctrl.$(O)		\
+  intern.$(O) hash.$(O) sys.$(O) parsing.$(O) gc_ctrl.$(O)		\
   md5.$(O) obj.$(O) \
   printexc.$(O) callback.$(O) weak.$(O) compact.$(O) finalise.$(O)	\
   custom.$(O) globroots.$(O) backtrace_prim.$(O) backtrace.$(O)		\

@@ -1,4 +1,4 @@
-/**************************************************************************/
+  /**************************************************************************/
 /*                                                                        */
 /*                                 OCaml                                  */
 /*                                                                        */
@@ -29,7 +29,7 @@
 #ifdef _WIN32
 #include <direct.h> /* for _wchdir and _wgetcwd */
 #else
-#include <sys/wait.h>
+// #include <sys/wait.h>
 #endif
 #include "caml/config.h"
 #ifdef HAS_UNISTD

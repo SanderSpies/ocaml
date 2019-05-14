@@ -119,6 +119,8 @@ let add_shadow_stack w fns = (
                     [Load {ty = !ty; align = 0; offset = 0l; sz = None}]
                   | Load {ty = F32Type; _} -> [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
                   | Const (I64 _) -> [Load {ty = I64Type; align = 0; offset = 0l; sz = None}]
+                  (* | Const (F64 _) -> failwith "nooo" *)
+                  (* | Call _ -> failwith "FIX THIS CASE!" *)
                   | _ -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}])
                 )
                 else
