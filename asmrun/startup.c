@@ -149,10 +149,11 @@ value caml_startup_common(char_os **argv, int pooling)
   else
     exe_name = caml_search_exe_in_path(exe_name);
   caml_sys_init(exe_name, argv);
-  if (sigsetjmp(caml_termination_jmpbuf.buf, 0)) {
-    if (caml_termination_hook != NULL) caml_termination_hook(NULL);
-    return Val_unit;
-  }
+  // TODO WASM:
+  // if (sigsetjmp(caml_termination_jmpbuf.buf, 0)) {
+  //   if (caml_termination_hook != NULL) caml_termination_hook(NULL);
+  //   return Val_unit;
+  // }
   return caml_start_program();
 }
 

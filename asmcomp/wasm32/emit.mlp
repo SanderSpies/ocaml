@@ -91,26 +91,19 @@ let wasm_module = ref {
     name = "caml_init_signals";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
-    body = [Unreachable; ];
+    body = [];
     no_of_args = 1
   };
   {
     name = "caml_debugger_init";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
-    body = [Unreachable; ];
+    body = [];
     no_of_args = 1
   };
   {
     name = "setjmp";
     ftype = "type_";
-    locals = [("temp", I32Type)];
-    body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
-  };
-  {
-    name = "caml_start_program";
-    ftype = "re_i32";
     locals = [("temp", I32Type)];
     body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
@@ -171,6 +164,89 @@ let wasm_module = ref {
     body = [Unreachable; Const (I32 0l)];
     no_of_args = 1
   };
+  (* 
+/* Start the OCaml program */
+
+FUNCTION(G(caml_start_program))
+       CFI_STARTPROC
+    /* Save callee-save registers */
+        PUSH_CALLEE_SAVE_REGS
+    /* Initial entry point is G(caml_program) */
+        LEA_VAR(caml_program, %r12)
+    /* Common code for caml_start_program and caml_callback* */
+LBL(caml_start_program):
+    /* Build a callback link */
+#ifdef WITH_SPACETIME
+        PUSH_VAR(caml_spacetime_trie_node_ptr)
+#else
+        subq    $8, %rsp; CFI_ADJUST (8)        /* stack 16-aligned */
+#endif
+        PUSH_VAR(caml_gc_regs)
+        PUSH_VAR(caml_last_return_address)
+        PUSH_VAR(caml_bottom_of_stack)
+#ifdef WITH_SPACETIME
+        /* Save arguments to caml_callback* */
+        pushq   %rax; CFI_ADJUST (8)
+        pushq   %rbx; CFI_ADJUST (8)
+        pushq   %rdi; CFI_ADJUST (8)
+        pushq   %rsi; CFI_ADJUST (8)
+        /* No need to push %r12: it's callee-save. */
+        movq    %r12, C_ARG_1
+        LEA_VAR(caml_start_program, C_ARG_2)
+        call    GCALL(caml_spacetime_c_to_ocaml)
+        popq    %rsi; CFI_ADJUST (-8)
+        popq    %rdi; CFI_ADJUST (-8)
+        popq    %rbx; CFI_ADJUST (-8)
+        popq    %rax; CFI_ADJUST (-8)
+#endif
+    /* Setup alloc ptr and exception ptr */
+        LOAD_VAR(caml_young_ptr, %r15)
+        LOAD_VAR(caml_exception_pointer, %r14)
+    /* Build an exception handler */
+        lea     LBL(108)(%rip), %r13
+        pushq   %r13; CFI_ADJUST(8)
+        pushq   %r14; CFI_ADJUST(8)
+        movq    %rsp, %r14
+#ifdef WITH_SPACETIME
+        LOAD_VAR(caml_spacetime_trie_node_ptr, %r13)
+#endif
+    /* Call the OCaml code */
+        call    *%r12
+LBL(107):
+    /* Pop the exception handler */
+        popq    %r14; CFI_ADJUST(-8)
+        popq    %r12; CFI_ADJUST(-8)   /* dummy register */
+LBL(109):
+    /* Update alloc ptr and exception ptr */
+        STORE_VAR(%r15,caml_young_ptr)
+        STORE_VAR(%r14,caml_exception_pointer)
+    /* Pop the callback link, restoring the global variables */
+        POP_VAR(caml_bottom_of_stack)
+        POP_VAR(caml_last_return_address)
+        POP_VAR(caml_gc_regs)
+#ifdef WITH_SPACETIME
+        POP_VAR(caml_spacetime_trie_node_ptr)
+#else
+        addq    $8, %rsp; CFI_ADJUST (-8);
+#endif
+    /* Restore callee-save registers. */
+        POP_CALLEE_SAVE_REGS
+    /* Return to caller. */
+        ret
+LBL(108):
+    /* Exception handler*/
+    /* Mark the bucket as an exception result and return it */
+        orq     $2, %rax
+        jmp     LBL(109)
+CFI_ENDPROC  
+  *)
+  {
+    name = "caml_start_program";
+    ftype = "re_i32";
+    locals = [("temp", I32Type)];
+    body = [Call ("caml_program", []); Const (I32 0l)];
+    no_of_args = 1
+  }
 (* 
   (import "env" "geteuid" (func $geteuid (type 10)))
   (import "env" "getuid" (func $getuid (type 10)))
@@ -240,7 +316,8 @@ let wasm_module = ref {
   {
     name = "caml_callback2_exn";
     details = Function
-  }];
+  };  
+  ];
 }
 
 let unique_name_counter = ref 0

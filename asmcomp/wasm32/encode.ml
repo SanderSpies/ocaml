@@ -962,7 +962,7 @@ let encode m =
       
       List.iteri(fun i f ->
         match f.details with
-        | Function when f.name = "caml_program" ->  (
+        | Function when f.name = "caml_startup" ->  (
           u8 6; (* WASM_INIT_FUNCS *)
           let g = gap32 () in
           let p = pos s in

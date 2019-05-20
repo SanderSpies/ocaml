@@ -423,10 +423,12 @@ char *caml_secure_getenv (char const *var)
   else
     return NULL;
 #else
-  if (geteuid () == getuid () && getegid () == getgid ())
-    return CAML_SYS_GETENV (var);
-  else
-    return NULL;
+return NULL; // TODO: refactor
+  // if (geteuid () == getuid () && getegid () == getgid ()){
+  //   printf("a3 \n");
+  //   return CAML_SYS_GETENV (var);
+  // } else
+  //   return NULL;
 #endif
 }
 

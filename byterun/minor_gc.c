@@ -53,6 +53,13 @@
          native code, or [caml_young_trigger].
 */
 
+// TODO: https://stackoverflow.com/questions/49980381/find-the-start-of-heap-using-lld-and-s2wasm
+/**
+ * - __heap_base
+ * - minor heap?
+ * - major heap?
+ */
+
 struct generic_table CAML_TABLE_STRUCT(char);
 
 asize_t caml_minor_heap_wsz;
@@ -135,7 +142,6 @@ void caml_set_minor_heap_size (asize_t bsz)
 {
   char *new_heap;
   void *new_heap_base;
-
   CAMLassert (bsz >= Bsize_wsize(Minor_heap_min));
   CAMLassert (bsz <= Bsize_wsize(Minor_heap_max));
   CAMLassert (bsz % sizeof (value) == 0);
