@@ -1,5 +1,5 @@
 open Ast
-open Values
+(* open Values *)
 
 let name s =
     try Utf8.decode s with Utf8.Utf8 ->
@@ -211,33 +211,6 @@ let create_symbol_table m fti = (
   )
   in  
   let m = add_missing_memory_addresses () in
-  check_duplicates m.Ast.symbols;
-  let add_elems_for_funcs () = Ast.(
-    let elems = ref [] in
-    List.iteri (fun i _ -> 
-      elems := !elems @ [{
-        index = 0l;
-        offset=[Const (I32 (I32.of_int_s i))];
-        init=[I32.of_int_s i]
-      }]
-    ) m.imports;
-    let no_of_imports = List.length m.imports in
-    List.iteri (fun i _ -> 
-      elems := !elems @ [{
-        index = 0l;
-        offset=[Const (I32 (I32.of_int_s (no_of_imports + i)))];
-        init=[I32.of_int_s (no_of_imports + i)]
-      }]
-    ) m.funcs;
-    let no_of_elems = Int32.of_int (List.length !elems) in
-    let tables:Ast.table list = Types.[{ttype = TableType ({min = no_of_elems; max = Some no_of_elems}, AnyFuncType)}] in
-    {
-      m with elems = !elems;
-             tables = tables;
-    }
-  )
-  in
-  let m = add_elems_for_funcs () in
   check_duplicates m.Ast.symbols;
   m
 )

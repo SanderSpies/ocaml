@@ -260,64 +260,7 @@ CFI_ENDPROC
   data = [];
   imports = [];
   exports = [];
-  symbols = [{
-    name = "jsRaise_i32_i32";
-    details = Function
-  };
-  {
-    name = "caml_callback_exn";
-    details = Function
-  };
-  {
-    name = "caml_init_signals";
-    details = Function
-  };
-  {
-    name = "caml_debugger_init";
-    details = Function
-  };
-  
-  {
-    name = "setjmp";
-    details = Function
-  };
-  {
-    name = "caml_start_program";
-    details = Function
-  };
-  {
-    name = "Saved_return_address";
-    details = Function
-  };
-  {
-    name = "Callback_link";
-    details = Function
-  };
-  {
-    name = "caml_raise_exception";
-    details = Function
-  };
-   {
-    name = "geteuid";
-    details = Function
-  };
-  {
-    name = "getuid";
-    details = Function
-  }; 
-  {
-    name = "getegid";
-    details = Function
-  };
-  {
-    name = "getgid";
-    details = Function
-  }; 
-  {
-    name = "caml_callback2_exn";
-    details = Function
-  };  
-  ];
+  symbols = [];
 }
 
 let unique_name_counter = ref 0
@@ -886,10 +829,6 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       tname = fun_name; 
       tdetails = Types.FuncType (args, mach_to_wasm rt)
     }];
-    exports = w.exports @ [{
-      name = name fun_name;
-      edesc = FuncExport fun_name;
-    }]
   }
 
 let end_assembly () =

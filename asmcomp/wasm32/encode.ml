@@ -710,7 +710,7 @@ let encode m =
           match s.details with
            | Data { index; offset } when s.name = symbol -> 
             found := true;
-            data_relocations := !data_relocations @ [R_WASM_MEMORY_ADDR_I32 (Int32.of_int p, symbol)];
+            (* data_relocations := !data_relocations @ [R_WASM_MEMORY_ADDR_I32 (Int32.of_int p, symbol)]; *)
             if offset = (-1l) then
               u32 0l
             else
@@ -719,7 +719,6 @@ let encode m =
            | Import _ when s.name = symbol ->
             found := true;
             let symbol_index = func_index symbol in
-            data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)];        
             u32 symbol_index
            | Global _ when s.name = symbol ->
             failwith "Not handling a global here..."
@@ -729,9 +728,8 @@ let encode m =
             failwith ("Not found symbol: " ^ symbol)
           )
         | FunctionLoc symbol -> 
-          let p = pos s in
+          (* let p = pos s in *)
           let symbol_index = func_index symbol in
-          data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)];  
           u32 symbol_index        
         | Int32 i32 -> 
           u32 i32
