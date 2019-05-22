@@ -446,6 +446,10 @@ let begin_assembly () = (
         name = "caml_int64_float_of_bits_unboxed";
         details = Import ([I64Type], [F64Type])
       };
+      (* {
+        name = "caml_sys_time_unboxed";
+        details = Import ([], [F64Type])
+      } *)
       (* TEMPORARY HACK:
         - apparently wasi wants this to be i32 * i64, while we expect it to be i32 * i32
       *)
@@ -612,7 +616,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | Cmulf -> [Binary (F32 F32Op.Mul)]
       | Cdivf -> [Binary (F32 F32Op.Div)]
       | Cfloatofint -> [Convert (F32 F32Op.ReinterpretInt)]
-      | Cintoffloat -> [Convert (I32 I32Op.ReinterpretFloat)]
+      | Cintoffloat -> [Convert (I32 I32Op.TruncSF64)]
       | Ccmpf CFeq -> [Compare (F32 F32Op.Eq)]
       | Ccmpf CFneq -> [Compare (F32 F32Op.Ne)]
       | Ccmpf CFlt -> [Compare (F32 F32Op.Lt)]
@@ -851,7 +855,7 @@ let end_assembly () =
       name = "jsRaise_i32_i32";
       ftype = "type_";
       locals = [("temp", I32Type)];
-      body = [Const (I32 0l)];
+      body = [Unreachable; Const (I32 0l)];
       no_of_args = 1
     }];
     start = None;
