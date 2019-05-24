@@ -710,7 +710,7 @@ let encode m =
           match s.details with
            | Data { index; offset } when s.name = symbol -> 
             found := true;
-            (* data_relocations := !data_relocations @ [R_WASM_MEMORY_ADDR_I32 (Int32.of_int p, symbol)]; *)
+            data_relocations := !data_relocations @ [R_WASM_MEMORY_ADDR_I32 (Int32.of_int p, symbol)];
             if offset = (-1l) then
               u32 0l
             else
@@ -840,7 +840,7 @@ let encode m =
             u8 5;
             vu32 (Int32.sub offset !data_pos);
             vu32 (Int32.of_int !symbol_index);
-            vs32 0l
+            vs32 4l
         )
       ) !data_relocations
 
