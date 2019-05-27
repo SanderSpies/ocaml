@@ -443,9 +443,18 @@ let begin_assembly () = (
         details = Import ([I64Type; I64Type], [I32Type])
       };
       {
+        name = "caml_int64_compare";
+        details = Import ([I64Type; I64Type], [I32Type])
+      };
+      {
         name = "caml_int64_float_of_bits_unboxed";
         details = Import ([I64Type], [F64Type])
       };
+      {
+        name = "caml_int64_equal";
+        details = Import ([I64Type; I64Type], [I32Type])
+      };
+      
       (* {
         name = "caml_sys_time_unboxed";
         details = Import ([], [F64Type])
@@ -658,7 +667,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       @
       [
         Convert (I64 I64Op.ExtendUI32);
-        Const (I32 32l);
+        Const (I64 32L);
         Binary (I64 I64Op.Shl)
       ]
       @
@@ -672,8 +681,11 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       List.fold_left (fun lst f -> 
         lst @ (emit_expr f)
       ) [] el    
-    | Top (Capply mt, (Top (Cload _ as op, el, _, _), _)::tl, _, _) -> (    
+    | Top (Capply mt, (Top (Cload _ as op, el, _, _), _)::tl, _, _) -> ( 
+      (* print_endline ("TL length:" ^ (string_of_int (List.length tl))); *)
+      (* print_endline ("EL length:" ^ (string_of_int (List.length el))); *)
       let fn_args = ref [] in
+      let tl = List.rev (List.tl (List.rev tl)) in (* !!!! this looks fishy *)
       let expression_list = List.fold_left (fun lst (f, ft) ->
         let result = emit_expr f in
         fn_args := !fn_args @ ft;

@@ -83,6 +83,7 @@ COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
   clambda_checks.$(O) spacetime.$(O) spacetime_snapshot.$(O)		\
   bigarray.$(O)
 
+# TODO: ADD SWITCH FOR WASM
 COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
   roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
   major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\

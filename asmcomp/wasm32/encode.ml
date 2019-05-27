@@ -379,7 +379,7 @@ let encode m =
         | Data { index; offset } when s.name = symbol  && not !found ->
             found := true;
             code_relocations := !code_relocations @ [R_WASM_MEMORY_ADDR_SLEB (Int32.of_int p, symbol)];
-            if symbol = "caml_globals_inited" || symbol = "caml_backtrace_pos" || index = (-1l) then
+            if symbol = "caml_globals_inited" || symbol = "caml_backtrace_pos" then
               vs32_fixed offset
             else 
               vs32_fixed (Int32.add offset 4l)
@@ -719,6 +719,7 @@ let encode m =
            | Import _ when s.name = symbol ->
             found := true;
             let symbol_index = func_index symbol in
+            data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)]; 
             u32 symbol_index
            | Global _ when s.name = symbol ->
             failwith "Not handling a global here..."
@@ -728,8 +729,9 @@ let encode m =
             failwith ("Not found symbol: " ^ symbol)
           )
         | FunctionLoc symbol -> 
-          (* let p = pos s in *)
+          let p = pos s in
           let symbol_index = func_index symbol in
+          data_relocations := !data_relocations @ [R_WASM_TABLE_INDEX_I32 (Int32.of_int p, symbol)];
           u32 symbol_index        
         | Int32 i32 -> 
           u32 i32
@@ -766,9 +768,9 @@ let encode m =
             u8 4;
             vu32 (Int32.sub offset !code_pos);
             vs32_fixed (Int32.of_int symbol_index); 
-            if symbol_ = "caml_globals_inited" || symbol_ = "caml_backtrace_pos" || index = (-1l) then
+            (* if symbol_ = "caml_globals_inited" || symbol_ = "caml_backtrace_pos" || index = (-1l) then
               vs32 0l
-            else 
+            else *)
               vs32 4l            
           | Import _
           | Function when s.name = symbol_ -> 
@@ -907,7 +909,6 @@ let encode m =
           vu32 d.relocation_offset;
           vu32 d.size
         )
-        
         )
       )        
     

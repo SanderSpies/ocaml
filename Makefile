@@ -1488,8 +1488,8 @@ watch:
 	done
 
 wasm32: 
-	# rm -f asmcomp/typed_cmm.cmo
-	# rm -f asmcomp/linking.cmo	
+	rm -f asmcomp/typed_cmm.cmo
+	rm -f asmcomp/linking.cmo	
 	rm -f asmcomp/shadow_stack.cmo
 	rm -f asmcomp/emit.cmo
 	rm -f asmcomp/encode.cmo
@@ -1519,7 +1519,7 @@ wasi-fast:
 
 replace:
 	/workspace/wabt/bin/wasm2wat test --no-check -o test8.wat
-	sed 's/local.get/get_local/g; s/local.set/set_local/g; s/local.tee/tee_local/g; s/global.get/get_global/g; s/global.set/set_global/g; s/global.tee/tee_global/g; s/convert_i32_u/convert_u\/i32/g; s/convert_i32_s/convert_s\/i32/g; s/trunc_f64_u/trunc_u\/f64/g; s/trunc_f64_s/trunc_s\/f64/g; s/reinterpret_i64/reinterpret\/i64/g; s/reinterpret_f64/reinterpret\/f64/g; s/extend_i32_s/extend_s\/i32/g; s/extend_i32_u/extend_u\/i32/g; s/convert_i64_s/convert_s\/i64/g; s/wrap_i64/wrap\/i64/g; s/demote_f64/demote\/f64/g; s/promote_f32/promote\/f32/g; s/trunc_f32_u/trunc_u\/f32/g;  s/funcref/anyfunc/g; s/reinterpret_f32/reinterpret\/f32/g; s/memory.grow/grow_memory/g' test8.wat > test9.wat
+	sed 's/local.get/get_local/g; s/local.set/set_local/g; s/local.tee/tee_local/g; s/global.get/get_global/g; s/global.set/set_global/g; s/global.tee/tee_global/g; s/convert_i32_u/convert_u\/i32/g; s/convert_i32_s/convert_s\/i32/g; s/trunc_f64_u/trunc_u\/f64/g; s/trunc_f64_s/trunc_s\/f64/g; s/reinterpret_i64/reinterpret\/i64/g; s/reinterpret_f64/reinterpret\/f64/g; s/extend_i32_s/extend_s\/i32/g; s/extend_i32_u/extend_u\/i32/g; s/convert_i64_s/convert_s\/i64/g; s/wrap_i64/wrap\/i64/g; s/demote_f64/demote\/f64/g; s/promote_f32/promote\/f32/g; s/trunc_f32_u/trunc_u\/f32/g;  s/funcref/anyfunc/g; s/reinterpret_f32/reinterpret\/f32/g; s/memory.grow/grow_memory/g; s/reinterpret_i32/reinterpret\/i32/g' test8.wat > test9.wat
 
 include .depend
 
