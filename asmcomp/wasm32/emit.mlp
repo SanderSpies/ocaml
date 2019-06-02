@@ -471,6 +471,7 @@ let begin_assembly () = (
 )
 
 let fundecl ({fun_name; fun_args; fun_body; _}) =
+  (* print_endline ("Fun: " ^ fun_name); *)
   Stack.clear block_stack;
   let (typed_cmm, rt, locals, fns) = Typed_cmm.add_types fun_name fun_args fun_body in
   let args = List.fold_left (fun a b -> a @ (Typed_cmm.mach_to_wasm (snd b))) [] fun_args in
@@ -682,10 +683,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         lst @ (emit_expr f)
       ) [] el    
     | Top (Capply mt, (Top (Cload _ as op, el, _, _), _)::tl, _, _) -> ( 
-      (* print_endline ("TL length:" ^ (string_of_int (List.length tl))); *)
-      (* print_endline ("EL length:" ^ (string_of_int (List.length el))); *)
+      (match mt with 
+      | [|Val|] -> print_endline "typ_val"
+      | [|Addr|] -> print_endline "typ_addr"
+      | [|Int|] -> print_endline "typ_int"
+      | [|Float|] -> print_endline "typ_float"
+      | [||] -> print_endline "typ_void"
+      | _ -> print_endline "other");
+      print_endline ("TEST:" ^ fun_name);
+      print_endline ("TL length:" ^ (string_of_int (List.length tl)));
+      print_endline ("EL length:" ^ (string_of_int (List.length el)));
       let fn_args = ref [] in
-      let tl = List.rev (List.tl (List.rev tl)) in (* !!!! this looks fishy *)
+      let tl = List.rev tl in
       let expression_list = List.fold_left (fun lst (f, ft) ->
         let result = emit_expr f in
         fn_args := !fn_args @ ft;
@@ -848,9 +857,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  (* let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in *)
-  let w = !wasm_module in
-  let f = !functions in
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  (* let w = !wasm_module in
+  let f = !functions in *)
   let w = Linking.create_symbol_table w f in
   Encode.encode w;
   wasm_module := {

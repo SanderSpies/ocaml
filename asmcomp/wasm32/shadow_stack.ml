@@ -24,7 +24,10 @@ open Wasm_types
  *)
 
 let is_external_call name =
-  String.length name > 5 && (String.sub name 0 5) = "caml_"
+  String.length name > 5 && (String.sub name 0 5) = "caml_"  
+
+(* let temp_hack name = 
+ name = "jsRaise_i32_i32" || name = "caml_init_signals" || name = "caml_debugger_init" || name = "getgid" || name = "getegid" || name = "getuid" || name = "geteuid" ||  name = "setjmp" || name = "Saved_return_address" || name = "Callback_link" || name = "caml_raise_exception" || name = "caml_callback2_exn" || name = "caml_callback_exn" *)
 
 let create_stack_frame stackframe_size = 
   let local_sp = 0l in
@@ -44,7 +47,7 @@ let create_stack_frame stackframe_size =
   set_return_addr
 
 let add_shadow_stack w fns = (
-  let func (f:Ast.func) = 
+  let func (f:Ast.func) =     
     let arg_type name index = (
       let found_function = List.find_opt (fun (f_name, _, _) -> 
         f_name = name
@@ -62,7 +65,7 @@ let add_shadow_stack w fns = (
       | None -> I32Type
     )
     in
-    if f.name = "caml_program" then 
+    if f.name = "caml_program" || f.body = []  then 
       f
     else (
       let stackframe_size = (List.length f.locals + 1) * 4 in
@@ -93,39 +96,18 @@ let add_shadow_stack w fns = (
           fix_body (result @ [CallIndirect (t, modified_args)]) remaining        
         | Call (function_name, args) :: remaining when function_name <> "caml_alloc" ->
             let modified_args = List.mapi (fun i a -> 
-              [GetGlobal "__stack_pointer"; 
+              (if is_external_call function_name then 
+                (fix_body [] a)
+               else
+                [GetGlobal "__stack_pointer"; 
                 Const (I32 (I32.of_int_s ((i + 1) * 4))); 
                 Binary (I32 I32Op.Sub)] 
-              @
-              (fix_body [] a)
-              @ 
-              [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
-              @ 
-              (
-                if is_external_call function_name then  
-                (* TODO: don't do this for DROP *)
-                (
-                  [GetGlobal "__stack_pointer"; 
-                  Const (I32 (I32.of_int_s ((i + 1) * 4))); 
-                  Binary (I32 I32Op.Sub)] 
-                  @                   
-                  (match List.hd (List.rev a) with 
-                  | GetLocal x ->
-                    let ty = ref I32Type in
-                    List.iteri (fun i (_, ty_) ->
-                      if Int32.of_int i = x then
-                        ty := ty_
-                    ) f.locals;
-                    [Load {ty = !ty; align = 0; offset = 0l; sz = None}]
-                  | Load {ty = F32Type; _} -> [Load {ty = F32Type; align = 0; offset = 0l; sz = None}]
-                  | Const (I64 _) -> [Load {ty = I64Type; align = 0; offset = 0l; sz = None}]
-                  (* | Const (F64 _) -> failwith "nooo" *)
-                  (* | Call _ -> failwith "FIX THIS CASE!" *)
-                  | _ -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}])
-                )
-                else
-                  []
-              )
+                  @
+                  (fix_body [] a)
+                  @ 
+                  [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
+
+              )              
             ) args 
             in
             fix_body (result @ [Call (function_name, modified_args)]) remaining
@@ -175,7 +157,8 @@ let add_shadow_stack w fns = (
           @
           (fix_body [] arg)
           @
-          [Store {ty = I32Type; align = 0; offset = 0l; sz = None}])
+          (let (_, ty) = List.nth f.locals pos in
+          [Store {ty; align = 0; offset = 0l; sz = None}]))
           remaining  
         | Return :: remaining -> 
           fix_body (result @ [
@@ -204,9 +187,12 @@ let add_shadow_stack w fns = (
   in
   let type_ t = 
     if t.tname <> "caml_program" && (is_external_call t.tname) = false  then     
-      {t with 
-        tdetails = FuncType ([], [I32Type])
-      }
+      match t with 
+      | {tdetails = FuncType([], []); _} -> t
+      | _ -> 
+        {t with 
+            tdetails = FuncType ([], [I32Type])
+        }
     else
       t
   in
