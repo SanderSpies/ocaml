@@ -268,29 +268,37 @@ let encode m =
       iter 0l m.types 
 
 
-    let rec instr e =
+    let rec instr locals e =
+      let get_local_position name = (
+        let rec find counter = function
+          | (local_, _) :: _ when local_ = name -> Int32.of_int counter
+          | _ ::  rest -> find (counter + 1) rest
+          | [] -> failwith ("did not find:" ^ name)
+        in
+        find 0 locals )
+      in
       match e with
       | Unreachable -> op 0x00
       | Nop -> op 0x01
-      | Block (ts, es) -> op 0x02; stack_type ts; list instr es; end_ ()
-      | Loop (ts, es) -> op 0x03; stack_type ts; list instr es; end_ ()
+      | Block (ts, es) -> op 0x02; stack_type ts; list (instr locals) es; end_ ()
+      | Loop (ts, es) -> op 0x03; stack_type ts; list (instr locals) es; end_ ()
       | If (ts, es1, es2) ->
-        op 0x04; stack_type ts; list instr es1;
+        op 0x04; stack_type ts; list (instr locals) es1;
         if es2 <> [] then op 0x05;
-        list instr es2; end_ ()
+        list (instr locals) es2; end_ ()
       | Br x -> op 0x0c; var x
       | BrIf x -> op 0x0d; var x
       | BrTable (xs, x) -> op 0x0e; vec var xs; var x
       | Return -> op 0x0f
       | Call (symbol, args) ->
-        List.iter (fun i -> List.iter instr i) args;
+        List.iter (fun i -> List.iter (instr locals) i) args;
         op 0x10;
         let p = pos s in
         let index = func_index symbol in
         code_relocations := !code_relocations @ [R_WASM_FUNCTION_INDEX_LEB (Int32.of_int p, symbol)];          
         reloc_index index
       | CallIndirect (x, args) ->
-        List.iter (fun i -> List.iter instr i) args;
+        List.iter (fun i -> List.iter (instr locals) i) args;
         op 0x11;        
         let p2 = pos s in
         let x = find_type x in
@@ -299,12 +307,12 @@ let encode m =
         u8 0x00
       | Drop -> op 0x1a
       | Select -> op 0x1b
-      | GetLocal x -> op 0x20; var x
+      | GetLocal x -> op 0x20; var (get_local_position x)
       | SetLocal (x, args) -> 
-        List.iter instr args;
+        List.iter (instr locals) args;
         op 0x21;
-        var x
-      | TeeLocal x -> op 0x22; var x
+        var (get_local_position x)
+      | TeeLocal x -> op 0x22; var (get_local_position x)
       | GetGlobal x ->
         op 0x23;
         let p = pos s in
@@ -545,7 +553,7 @@ let encode m =
       | Convert (F64 F64Op.ReinterpretInt) -> op 0xbf
 
     let const c =
-      list instr c; end_ ()
+      list (instr []) c; end_ ()
 
     (* Sections *)
     let code_section_index = ref 0
@@ -672,7 +680,7 @@ let encode m =
         rem 0 locals
       in
       vec local (compress (remove_first locals no_of_args));
-      list instr body;
+      list (instr f.locals) body;
       end_ ();
       patch_gap32 g (pos s - p)
 

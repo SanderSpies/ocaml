@@ -24,51 +24,53 @@ open Wasm_types
  *)
 
 let is_external_call name =
-  String.length name > 5 && (String.sub name 0 5) = "caml_"  
+  (String.length name > 5 && (String.sub name 0 5) = "caml_") || (String.length name > 4 && (String.sub name 0 4) <> "caml")
 
 (* let temp_hack name = 
  name = "jsRaise_i32_i32" || name = "caml_init_signals" || name = "caml_debugger_init" || name = "getgid" || name = "getegid" || name = "getuid" || name = "geteuid" ||  name = "setjmp" || name = "Saved_return_address" || name = "Callback_link" || name = "caml_raise_exception" || name = "caml_callback2_exn" || name = "caml_callback_exn" *)
 
 let create_stack_frame stackframe_size = 
-  let local_sp = 0l in
-  let move_stack_pointer = [
-    GetGlobal "__stack_pointer";
-    TeeLocal local_sp;
-    Const (I32 (I32.of_int_s stackframe_size));  
+  [
+    GetGlobal "__stack_pointer";    
+    Const (I32 (I32.of_int_u stackframe_size));  
     Binary (I32 I32Op.Sub);  
-    SetGlobal "__stack_pointer"]
-  in
-  let set_return_addr = [ 
-    GetGlobal "__stack_pointer";
-    GetLocal local_sp;
-    Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-  in
-  move_stack_pointer @
-  set_return_addr
+    TeeLocal "__local_sp";
+    SetGlobal "__stack_pointer"
+  ]  
+
+let pointer_size = 8
 
 let add_shadow_stack w fns = (
-  let func (f:Ast.func) =     
-    let arg_type name index = (
-      let found_function = List.find_opt (fun (f_name, _, _) -> 
-        f_name = name
-      ) fns in
-      match found_function with 
-      | Some (_fname, _, args) -> (
-        (match (List.nth_opt args index) with
-        | Some [I64Type] -> I64Type
-        | Some [I32Type] -> I32Type
-        | Some [F32Type] -> F32Type
-        | Some [F64Type] -> F64Type
-        | Some _ -> assert false
-        | None -> I32Type)
-      )
-      | None -> I32Type
-    )
+  let func (f:Ast.func) = (
+    let get_local_position name = (
+      let rec find counter = function
+        | (local_, _) :: _ when local_ = name -> counter
+        | _ ::  rest -> find (counter + 1) rest
+        | [] -> assert false
+      in
+      find 0 f.locals )
     in
-    if f.name = "caml_program" || f.body = []  then 
+    if f.body = [] then 
       f
     else (
-      let stackframe_size = (List.length f.locals + 1) * 4 in
+      let arg_type name index = (
+        let found_function = List.find_opt (fun (f_name, _, _) -> 
+          f_name = name
+        ) fns in
+        match found_function with 
+        | Some (_fname, _, args) -> (
+          (match (List.nth_opt args index) with
+          | Some [I64Type] -> I64Type
+          | Some [I32Type] -> I32Type
+          | Some [F32Type] -> F32Type
+          | Some [F64Type] -> F64Type
+          | Some _ -> assert false
+          | None -> I32Type)
+        )
+        | None -> I32Type
+      )
+      in
+      let stackframe_size = (List.length f.locals) * pointer_size in
       let push_stackframe = create_stack_frame stackframe_size in
 
       let rec fix_body result (il:Ast.instr list) =
@@ -82,78 +84,61 @@ let add_shadow_stack w fns = (
         | CallIndirect (t, args) :: remaining -> 
           let rev_args = List.rev args in
           let modified_args = List.mapi (fun i a -> 
-            [GetGlobal "__stack_pointer"; 
-             Const (I32 (I32.of_int_s ((i + 1) * 4))); 
-             Binary (I32 I32Op.Sub)] 
-             @ 
-            (fix_body [] a) 
+              [GetLocal "__local_sp"; 
+              Const (I32 (I32.of_int_u ((i + 1) * pointer_size))); 
+              Binary (I32 I32Op.Sub)] 
+              @ 
+              (fix_body [] a) 
+              @ 
+              [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]
+            ) (List.rev (List.tl rev_args))
             @ 
-            [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]
-          ) (List.rev (List.tl rev_args))
-          @ 
-          [fix_body [] (List.hd rev_args)]
+            [fix_body [] (List.hd rev_args)]          
           in
-          fix_body (result @ [CallIndirect (t, modified_args)]) remaining        
-        | Call (function_name, args) :: remaining when function_name <> "caml_alloc" ->
+          fix_body (result @ [CallIndirect ("re_i32", modified_args)]) remaining
+        | Call (function_name, args) :: remaining ->
             let modified_args = List.mapi (fun i a -> 
-              (if is_external_call function_name then 
-                (fix_body [] a)
-               else
-                [GetGlobal "__stack_pointer"; 
-                Const (I32 (I32.of_int_s ((i + 1) * 4))); 
-                Binary (I32 I32Op.Sub)] 
-                  @
+              (
+                if is_external_call function_name then 
                   (fix_body [] a)
-                  @ 
-                  [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
-
+                else
+                  (
+                    [GetLocal "__local_sp";
+                    Const (I32 (I32.of_int_u ((i + 1) * pointer_size))); 
+                    Binary (I32 I32Op.Sub)] 
+                    @
+                    (fix_body [] a)
+                    @ 
+                    [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
+                  )
               )              
             ) args 
             in
-            fix_body (result @ [Call (function_name, modified_args)]) remaining
+            fix_body (result @ [Call (function_name, modified_args)]) remaining        
         | GetLocal x :: remaining -> 
-          let ty = ref I32Type in
-          List.iteri (fun i (_, ty_) ->
-            if Int32.of_int i = x then
-              ty := ty_
-          ) f.locals;
-          let i = Int32.to_int x in
+          let i = get_local_position x in
+          let (_, ty) = (List.nth f.locals i) in
           fix_body
           (result 
           @
-          (if i >= f.no_of_args then 
-          [
-            GetGlobal "__stack_pointer";
-            Const (I32 (I32.of_int_s ((i - f.no_of_args + 1) * 4)));    
+          [            
+            GetLocal "__local_sp";
+            Const (I32 (I32.of_int_u (stackframe_size - ((i + 1) * pointer_size))));    
             Binary (I32 I32Op.Add);
-            Load {ty = !ty; align = 0; offset = 0l; sz = None}]
-          else 
-            [
-              GetGlobal "__stack_pointer";
-              Const (I32 (I32.of_int_s ((stackframe_size - (i + 1) * 4) * 4)));    
-              Binary (I32 I32Op.Add);
-              Load {ty = !ty; align = 0; offset = 0l; sz = None}
-            ]
-          )
+            Load {ty; align = 0; offset = 0l; sz = None}
+          ]          
           )
           remaining
         | SetLocal (x, arg)  :: remaining -> 
-          let pos = Int32.to_int x in
-          
+          let pos = get_local_position x in          
           fix_body 
           (result 
-          @
-          (if pos >= f.no_of_args then 
+          @          
           [
-            GetGlobal "__stack_pointer";
-            Const (I32 (I32.of_int_s ((pos - f.no_of_args + 1) * 4)));    
-            Binary (I32 I32Op.Add)]
-          else 
-            [
-              GetGlobal "__stack_pointer";
-              Const (I32 (I32.of_int_s ((stackframe_size - (pos + 1) * 4) * 4)));    
-              Binary (I32 I32Op.Add);
-            ])
+            GetLocal "__local_sp";
+            Const (I32 (I32.of_int_u (stackframe_size - ((pos + 1) * pointer_size))));    
+            Binary (I32 I32Op.Add);
+          ]
           @
           (fix_body [] arg)
           @
@@ -162,48 +147,45 @@ let add_shadow_stack w fns = (
           remaining  
         | Return :: remaining -> 
           fix_body (result @ [
-            GetGlobal "__stack_pointer";
-            Load {ty = I32Type; align = 0; offset = 0l; sz = None};
+            GetLocal "__local_sp";
+            Const (I32 (I32.of_int_u stackframe_size));  
+            Binary (I32 I32Op.Add);  
             SetGlobal "__stack_pointer";
             Return
           ]) remaining
         | other :: remaining -> 
           fix_body (result @ [other]) remaining
-        | [] -> result
+        | [] -> result    
       in   
       let pop_stackframe = 
-      [
-        GetGlobal "__stack_pointer";
-        Load {ty = I32Type; align = 0; offset = 0l; sz = None};
-        SetGlobal "__stack_pointer";
-        ]
+        [ 
+          GetLocal "__local_sp";
+          Const (I32 (I32.of_int_u stackframe_size));  
+          Binary (I32 I32Op.Add);  
+          SetGlobal "__stack_pointer"
+        ]  
       in
-      {f with 
-        locals = [("__local_sp", I32Type)];
-        no_of_args = 0;
-        body = push_stackframe @ (fix_body [] f.body) @ pop_stackframe
-      }
+        {f with 
+          locals = [("__local_sp", I32Type)] @ f.locals;
+          no_of_args = 0;
+          body = push_stackframe @ (fix_body [] f.body) @ pop_stackframe
+        }  
     )
+  )  
   in
   let type_ t = 
-    if t.tname <> "caml_program" && (is_external_call t.tname) = false  then     
-      match t with 
-      | {tdetails = FuncType([], []); _} -> t
-      | _ -> 
-        {t with 
-            tdetails = FuncType ([], [I32Type])
-        }
-    else
-      t
+    match t with 
+    | {tdetails = FuncType([], []); _} -> t
+    | _ -> 
+      {t with 
+          tdetails = FuncType ([], [I32Type])
+      }
   in
   let symbol s = 
-    if (String.sub s.name 0 5) = "caml_" then 
-      s
-    else 
-      match s.details with 
-      | Function
-      | Import _ -> {s with details = Import ([], [I32Type])}
-      | _-> s 
+    match s.details with 
+    | Function
+    | Import _ -> {s with details = Import ([], [I32Type])}
+    | _-> s
   in
   (Ast.{w with 
     globals = [{
@@ -211,13 +193,29 @@ let add_shadow_stack w fns = (
       gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
       value = [Const (I32 4l)]
     }] @ w.globals;
-    funcs = List.map func w.funcs;
-    types = List.map type_ w.types;
-    symbols = List.map symbol w.symbols;  
+    funcs = List.map (fun (f:Ast.func) -> 
+      if is_external_call f.name then         
+        f 
+      else 
+        func f
+    ) w.funcs;
+    types = List.map (fun t -> 
+      if is_external_call t.tname then 
+        t 
+      else (
+        type_ t 
+      )
+    ) w.types;
+    symbols = List.map (fun s -> 
+      if is_external_call s.name then 
+        s
+      else 
+        symbol s    
+    ) w.symbols;  
   }, List.map (fun (name, rt, args) -> 
-    if (is_external_call name) = false then
-      (name, [I32Type], []) 
-    else
+    if is_external_call name then
       (name, rt, args)
+    else
+      (name, [I32Type], [])
   ) fns)
 )

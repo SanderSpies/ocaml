@@ -1,14 +1,15 @@
-let rec fibonacci n =
+(* let rec fibonacci n =
   if n < 3 then
     1
   else
     fibonacci (n-1) + fibonacci (n-2)
 
 let () =
+  print_endline "Fibonacci begin";
   for n = 1 to 16 do
     print_endline (string_of_int (fibonacci n))
   done;
-  print_endline "..."
+  print_endline "Fibonacci end"
 
 let something to_ check for_ me = 
   to_ + check + for_ + me
@@ -16,33 +17,34 @@ let something to_ check for_ me =
 let x = something 12 3
 let z = x 3 4
 ;;
-print_endline ("Testing the sum of 12 + 3 + 3 + 4 = 22 === " ^ string_of_int z)
+assert (22 = z)
 ;;
-let f = x 5 6
-;;
-print_endline ("Testing the sum of 12 + 3 + 5 + 6 = 26 === " ^ string_of_int f)
-
+let f = x 5 6;;
+assert (26 = f);;
+*)
 let o = [|1;2;3;4;5;6|];;
-print_endline ("2 ===" ^ (string_of_int o.(1)));;
-print_endline ("6 ===" ^ (string_of_int (Array.length o)));;
- print_int 12;;
-print_int 5;;
-print_endline "- WRAPPPED";;
-
-let z = [1;3;4;5;6];;
-ignore(z);
+assert (2 = o.(1));;
+assert (6 = Array.length o);;
 print_int 12;;
-print_endline "oh hai";;
-print_endline ("4 === " ^ (string_of_int (List.nth z 2)));;
-List.iter print_int z;;
+(* print_int 5;;
+print_endline " should be 125";; *)
+(*
+print_endline "logged this";;
 
-print_endline "foobar xxxxx";;
-
-let o = ref 2;;
-print_endline ("testing" ^ string_of_int !o);;
+ let z = [1;3;4;5;6];;
+print_endline (string_of_int (List.nth z 2));;
+List.iter print_int z;; *)
+(* print_endline " should be 13456";; *)
+(* let o = ref 2;;
+assert (!o = 2);;
 o := 3;;
-print_endline ("testing" ^ string_of_int !o);;
+assert (!o = 3);;*)
+(* 
+let x (a, b) = a + b;;
 
+x (1, 2);; *)
+
+(* 
 
  module IntPairs =
        struct
@@ -55,15 +57,19 @@ print_endline ("testing" ^ string_of_int !o);;
 
 module PairsSet = Set.Make(IntPairs)
 
-let m = PairsSet.(empty |> add (2,3) |> add (5,7) |> add (11,13));;
-  
+let m = PairsSet.(empty |> add (2,3) |> add (5,7) |> add (11,13));; *)
+(*   
 ignore(m);;
 
-
 print_int (PairsSet.cardinal m);;
-print_endline " - checking";;
+print_endline " should be 3";; *)
 
-PairsSet.iter (fun (a, b) -> print_endline ("Checking: " ^ string_of_int a ^ " vs " ^ string_of_int b)) m;;
+(* let (a, b) = PairsSet.find (2,3) m in
+assert(a = 2 && b = 3);; *)
+
+(* PairsSet.iter (fun (a, _) -> ignore(a)) m;; *)
+(* assert ((PairsSet.mem (2,3) m) && (PairsSet.mem (5,7) m) && (PairsSet.mem (11,13) m));; *)
+  
  (* let o = Sys.time();; *)
 (* print_endline (string_of_int (int_of_float o));; *)
 (* print_endline (string_of_float o);; *)

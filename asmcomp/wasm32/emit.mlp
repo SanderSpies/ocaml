@@ -83,23 +83,23 @@ let wasm_module = ref {
   {
     name = "caml_callback_exn";
     ftype = "i32->i32->i32";
-    locals = [("temp", I32Type)];
+    locals = [("temp", I32Type); ("temp2", I32Type);];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 2
   };
   {
     name = "caml_init_signals";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
     body = [];
-    no_of_args = 1
+    no_of_args = 0
   };
   {
     name = "caml_debugger_init";
     ftype = "empty_type";
     locals = [("temp", I32Type)];
     body = [];
-    no_of_args = 1
+    no_of_args = 0
   };
   {
     name = "setjmp";
@@ -132,37 +132,37 @@ let wasm_module = ref {
   {
     name = "caml_callback2_exn";
     ftype = "i32->i32->i32->i32";
-    locals = [("temp", I32Type)];
+    locals = [("temp", I32Type); ("temp2", I32Type); ("temp3", I32Type); ];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 3
   };
   {
     name = "geteuid";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 0
   };
   {
     name = "getuid";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 0
   };
   {
     name = "getegid";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 0
   };
   {
     name = "getgid";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
     body = [Unreachable; Const (I32 0l)];
-    no_of_args = 1
+    no_of_args = 0
   };
   (* 
 /* Start the OCaml program */
@@ -489,12 +489,13 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         let (_word_size, tag) = blockheader_details header in
         let counter = !unique_name_counter in
         unique_name_counter := !unique_name_counter + 1;
-        let local_ = add_local ("allocate_memory_pointer_" ^ string_of_int counter, typ_int) in
+        let name = "allocate_memory_pointer_" ^ string_of_int counter in
+        ignore(add_local (name, typ_int));
         let position = ref 0 in
         let total_size = ref 0 in
         let calls = List.fold_left (fun calls (f, rt) ->
           let before = calls @
-          [GetLocal local_;
+          [GetLocal name;
           Const (I32 (I32.of_int_s !position));
           Binary (I32 I32Op.Add)]
           in        
@@ -518,12 +519,12 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         ) [] ([hd] @ rest)
         in  
         let result = [
-          SetLocal (local_, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size)); Const (I32 (Nativeint.to_int32 tag))]])]);
+          SetLocal (name, [Call ("caml_alloc", [[Const (I32 (Int32.of_int !total_size)); Const (I32 (Nativeint.to_int32 tag))]])]);
         ]
         @
         calls
         @    
-        [GetLocal local_;
+        [GetLocal name;
         Const (I32 4l);
         Binary (I32 I32Op.Add)
         ]
@@ -533,16 +534,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     | Cmodi, [(fst, _); (snd, _)] ->
       let counter = !unique_name_counter in
       unique_name_counter := !unique_name_counter + 1;
-      let cmod_local = add_local ("cmod_" ^ string_of_int counter, typ_int) in
-      let cmod_local2 = add_local ("cmod2_" ^ string_of_int counter, typ_int) in
+      let a1 = "cmod_" ^ string_of_int counter in
+      let a2 = "cmod2_" ^ string_of_int counter in
+      ignore(add_local (a1, typ_int));
+      ignore(add_local (a2, typ_int));
       let result =
-      [SetLocal (cmod_local, emit_expr fst);
-        GetLocal cmod_local;
-        GetLocal cmod_local] @
+      [SetLocal (a1, emit_expr fst);
+        GetLocal a1;
+        GetLocal a1] @
       (emit_expr snd) @
-      [TeeLocal cmod_local2;
+      [TeeLocal a2;
         Binary (I32 I32Op.DivS);
-        GetLocal cmod_local2;
+        GetLocal a2;
         Binary (I32 I32Op.Mul);
         Binary (I32 I32Op.Sub)]
       in 
@@ -647,13 +650,13 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     | Tconst_float f -> [Const (F32 (F32.of_float f))]  
     | Tconst_symbol (symbol, _) -> [DataSymbol symbol]
     | Tblockheader (i, _) -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
-    | Tvar (_ident, _mt, pos) -> [GetLocal pos]
-    | Tassign (_i, e, pos) -> [SetLocal (pos, emit_expr e)]
+    | Tvar (ident, _mt, _pos) -> [GetLocal (ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp)]
+    | Tassign (ident, e, _pos) -> [SetLocal ((ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp), emit_expr e)]
     | Ttuple [] -> [Nop]
-    | Tlet (_ident, arg, arg_rt, fn_body, pos) -> 
+    | Tlet (ident, arg, arg_rt, fn_body, _pos) -> 
       let result = emit_expr arg in    
       if (arg_rt <> []) then (
-        [SetLocal (pos, result)]
+        [SetLocal ((ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp), result)]
         @
         (emit_expr fn_body)    
       )
@@ -683,7 +686,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         lst @ (emit_expr f)
       ) [] el    
     | Top (Capply mt, (Top (Cload _ as op, el, _, _), _)::tl, _, _) -> ( 
-      (match mt with 
+      (* (match mt with 
       | [|Val|] -> print_endline "typ_val"
       | [|Addr|] -> print_endline "typ_addr"
       | [|Int|] -> print_endline "typ_int"
@@ -692,7 +695,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | _ -> print_endline "other");
       print_endline ("TEST:" ^ fun_name);
       print_endline ("TL length:" ^ (string_of_int (List.length tl)));
-      print_endline ("EL length:" ^ (string_of_int (List.length el)));
+      print_endline ("EL length:" ^ (string_of_int (List.length el))); *)
       let fn_args = ref [] in
       let tl = List.rev tl in
       let expression_list = List.fold_left (fun lst (f, ft) ->
@@ -852,12 +855,12 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     }];
     types = w.types @ [{
       tname = fun_name; 
-      tdetails = Types.FuncType (args, mach_to_wasm rt)
+    tdetails = Types.FuncType (args, mach_to_wasm rt)
     }];
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in  
   (* let w = !wasm_module in
   let f = !functions in *)
   let w = Linking.create_symbol_table w f in
