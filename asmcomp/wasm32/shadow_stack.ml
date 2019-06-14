@@ -6,9 +6,9 @@ open Wasm_types
  * In the WebAssembly MVP there is no access to the stack. This module adds a 
  * shadow stack to make it possible to implement GC and exception handling.
  *
- *                      ----------------------------------------------
- * Stack frame layout: | return address | local variables | arguments |
- *                      ----------------------------------------------
+ *                      -----------------------------
+ * Stack frame layout: | local variables | arguments |
+ *                      -----------------------------
  *
  * This module will add most of the locals and arguments inside the shadow 
  * stack.
@@ -24,7 +24,10 @@ open Wasm_types
  *)
 
 let is_external_call name =
-  (String.length name > 5 && (String.sub name 0 5) = "caml_") || (String.length name > 4 && (String.sub name 0 4) <> "caml")
+  (String.length name > 5 && (String.sub name 0 5) = "caml_" && 
+  ((String.length name < 12) || (String.sub name 0 12) <> "caml_tuplify") &&
+  ((String.length name < 10) || (String.sub name 0 10) <> "caml_apply")) || 
+  (String.length name > 4 && (String.sub name 0 4) <> "caml") 
 
 let pointer_size = 8
 
