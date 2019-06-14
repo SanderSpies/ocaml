@@ -26,22 +26,15 @@ open Wasm_types
 let is_external_call name =
   (String.length name > 5 && (String.sub name 0 5) = "caml_") || (String.length name > 4 && (String.sub name 0 4) <> "caml")
 
-let create_stack_frame stackframe_size =    
-  (if stackframe_size > 0 then 
-    [ GetGlobal "__stack_pointer";
-      Const (I32 (I32.of_int_u stackframe_size)); 
-      Binary (I32 I32Op.Sub);
-      TeeLocal "__local_sp";
-      SetGlobal "__stack_pointer"]  
-  else 
-    [ SetLocal ("__local_sp", [GetGlobal "__stack_pointer"]) ]
-  )
-  
-
 let pointer_size = 8
 
 let add_shadow_stack w fns = (
   let func (f:Ast.func) = (
+    let find_function name = 
+      List.find_opt (fun (f_name, _, _) -> 
+          f_name = name
+        ) fns
+    in
     let get_local_position name = (
       let rec find counter = function
         | (local_, _) :: _ when local_ = name -> counter
@@ -53,10 +46,12 @@ let add_shadow_stack w fns = (
     if f.body = [] then 
       f
     else (
+      let locals = ref ([("__local_sp", I32Type)] @ f.locals) in
+      let add_local local = 
+        locals := !locals @ [local] 
+      in
       let arg_type name index = (
-        let found_function = List.find_opt (fun (f_name, _, _) -> 
-          f_name = name
-        ) fns in
+        let found_function = find_function name in
         match found_function with 
         | Some (_fname, _, args) -> (
           (match (List.nth_opt args index) with
@@ -71,119 +66,134 @@ let add_shadow_stack w fns = (
       )
       in
       let stackframe_size = (List.length f.locals) * pointer_size in
-      let push_stackframe = create_stack_frame stackframe_size in
 
-      let usedStackSpace = ref 0 in
+      let push_stackframe =
+        (if stackframe_size > 0 then 
+          [ GetGlobal "__stack_pointer";
+            Const (I32 (I32.of_int_u stackframe_size)); 
+            Binary (I32 I32Op.Sub);
+            TeeLocal "__local_sp";
+            SetGlobal "__stack_pointer"]  
+        else 
+          [ SetLocal ("__local_sp", [GetGlobal "__stack_pointer"]) ]
+        )
+      in      
       let rec fix_body result (il:Ast.instr list) =
-        
         match (il: Ast.instr list) with 
         | Loop (t, e) :: remaining -> 
-          fix_body (result @ [Loop (t, fix_body [] e)]) remaining
+          fix_body  (result @ [Loop (t, fix_body  [] e)]) remaining
         | Block (t, e) :: remaining -> 
-          fix_body (result @ [Block (t, fix_body [] e)]) remaining        
+          fix_body   (result @ [Block (t, fix_body  [] e)]) remaining        
         | If (t, e1, e2) :: remaining -> 
-          fix_body (result @ [If (t, fix_body [] e1, fix_body [] e2)]) remaining        
-        | CallIndirect (t, args) :: remaining -> 
+          fix_body   (result @ [If (t, fix_body  [] e1, fix_body  [] e2)]) remaining        
+        (* | CallIndirect (t, args) :: remaining -> 
           let rev_args = List.rev args in
-          let arg_add = !usedStackSpace * pointer_size in
-          usedStackSpace := !usedStackSpace + (List.length args - 1);
+          let arg_add =  * pointer_size in
           let prefix = (if (arg_add > 0) then
-            [SetLocal ("__local_sp", [GetLocal "__local_sp"; Const (I32 (I32.of_int_u arg_add)); Binary (I32 I32Op.Sub)])]
+            [GetGlobal "__stack_pointer";
+                Const (I32 (I32.of_int_u arg_add)); 
+                Binary (I32 I32Op.Sub);
+                SetGlobal "__stack_pointer"]
             else
             []
           )
           in
           let modified_args = List.mapi (fun i a -> 
-              let arg_pos = (i + 1) * pointer_size in              
+              let arg_pos = ( + i + 1) * pointer_size in              
               [ GetLocal "__local_sp"; 
                 Const (I32 (I32.of_int_u arg_pos)); 
                 Binary (I32 I32Op.Sub)
               ] 
               @               
-              (fix_body [] a) 
-              @ (                
-                [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]
-              )
+              (fix_body ( + List.length args - 1) [] a) 
+              @
+              [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]              
             ) (List.rev (List.tl rev_args))
             @ 
-            [fix_body [] (List.hd rev_args)]          
+            [fix_body  [] (List.hd rev_args)]          
           in
-          usedStackSpace := !usedStackSpace - (List.length args - 1);
           let postfix = (if (arg_add > 0) then
-            [SetLocal ("__local_sp", [GetLocal "__local_sp"; Const (I32 (I32.of_int_u arg_add)); Binary (I32 I32Op.Add)])]
-            else
-            []
-          ) in
-          fix_body (result @ prefix @ [CallIndirect ("re_i32", modified_args)] @ postfix) remaining
-          | Call (function_name, args) :: remaining ->
-            let arg_add = !usedStackSpace * pointer_size in
-            usedStackSpace := !usedStackSpace + List.length args;
-            let prefix = (if (arg_add > 0) then
-              [
-                SetLocal ("__local_sp", [GetLocal "__local_sp"; Const (I32 (I32.of_int_u arg_add)); Binary (I32 I32Op.Sub)]);
-                GetLocal "__local_sp";
-                SetGlobal "__stack_pointer"
-              ]
-            else
-              []
-            )
-            in
-            let modified_args = List.mapi (fun i a -> 
-              (
-                let arg_pos = (i + 1) * pointer_size in    
-                if is_external_call function_name then 
-                  (fix_body [] a)
-                else
-                  (          
-                    [GetLocal "__local_sp";
-                      Const (I32 (I32.of_int_u arg_pos)); 
-                      Binary (I32 I32Op.Sub)] 
-                    @
-                    (fix_body [] a)
-                    @ 
-                    [Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}]
-                  )
-              )              
-            ) args 
-            in
-            usedStackSpace := !usedStackSpace - List.length args;
-             let postfix = (if (arg_add > 0) then
-            [SetLocal ("__local_sp", [GetLocal "__local_sp"; Const (I32 (I32.of_int_u arg_add)); Binary (I32 I32Op.Add)]);
-             GetLocal "__local_sp";
-             SetGlobal "__stack_pointer"
+            [ GetGlobal "__stack_pointer";
+              Const (I32 (I32.of_int_u arg_add)); 
+              Binary (I32 I32Op.Add);
+              SetGlobal "__stack_pointer"
             ]
             else
             []
           ) in
-            fix_body (result @ prefix @ [Call (function_name, modified_args)] @ postfix) remaining        
+          fix_body  (result @ prefix @ [CallIndirect ("re_i32", modified_args)] @ postfix) remaining *)
+
+        | CallIndirect (t, args) :: remaining -> 
+          let rev_args = List.rev args in
+          (* let arg_add =  * pointer_size in *)
+         
+          let modified_args = List.mapi (fun i a -> 
+              let arg_pos = (i + 1) * pointer_size in              
+              let local_name = "ft_" ^ t ^ "_" ^ (string_of_int i) in
+              add_local (local_name, arg_type t i);
+              ([SetLocal (local_name, (fix_body [] a))],
+               [
+                 GetLocal "__local_sp";
+                  Const (I32 (I32.of_int_u arg_pos)); 
+                  Binary (I32 I32Op.Sub);
+                  GetLocal local_name;
+                 Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]              
+              ) 
+            ) (List.tl rev_args)
+          in
+          fix_body  (result @ [CallIndirect ("re_i32", (List.map fst modified_args) @ (List.map snd modified_args) @ ([fix_body  [] (List.hd rev_args)]))]) remaining
+        | Call (function_name, args) :: remaining ->            
+            let modified_args = List.mapi (fun i a -> (
+                let arg_pos = (i + 1) * pointer_size in    
+                let local_name = function_name ^ "_" ^ string_of_int i in
+                add_local (local_name, arg_type function_name i);
+                if is_external_call function_name then 
+                  (fix_body [] a, [])
+                else
+                  (                              
+                    ([SetLocal (local_name, (fix_body [] a))],
+                     [
+                      GetLocal "__local_sp";
+                      Const (I32 (I32.of_int_u arg_pos)); 
+                      Binary (I32 I32Op.Sub);
+                      GetLocal local_name;
+                      Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}
+                     ]
+                    )
+                  )
+              )              
+            ) args 
+            in
+            fix_body  (result @ [Call (function_name, (List.map fst modified_args) @ (List.map snd modified_args))]) remaining        
         | GetLocal x :: remaining -> 
           let i = get_local_position x in
           let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
           let (_, ty) = (List.nth f.locals i) in
-          fix_body
+          fix_body          
           (result 
-          @
-          [            
-            GetLocal "__local_sp";            
-            Load {ty; align = 0; offset; sz = None}
-          ]          
+          @          
+            [ 
+              GetLocal "__local_sp";
+              Load {ty; align = 0; offset; sz = None}
+            ]   
           )
           remaining
         | SetLocal (x, arg)  :: remaining ->           
           let pos = get_local_position x in  
           let offset = I32.of_int_u (stackframe_size - ((pos + 1) * pointer_size)) in        
-          fix_body 
+          fix_body           
           (result 
-          @          
-          [GetLocal "__local_sp"]
-          @
-          (fix_body [] arg)
-          @
-          (let (_, ty) = List.nth f.locals pos in
-          [Store {ty; align = 0; offset; sz = None}]))
+          @               
+              [GetLocal "__local_sp"]
+              @                 
+              (fix_body [] arg)
+              @
+             (let (_, ty) = List.nth f.locals pos in
+            [Store {ty; align = 0; offset; sz = None}])
+          )          
           remaining  
         | Return :: remaining -> 
-          fix_body (result @ 
+          fix_body  (result @ 
             if stackframe_size > 0 then
               [            
                 GetLocal "__local_sp";
@@ -196,22 +206,22 @@ let add_shadow_stack w fns = (
               [Return]
           ) remaining
         | other :: remaining -> 
-          fix_body (result @ [other]) remaining
+          fix_body  (result @ [other]) remaining
         | [] -> result    
       in   
       let pop_stackframe = 
         if stackframe_size > 0 then
           [ 
-            GetLocal "__local_sp";
+            GetGlobal "__stack_pointer";
             Const (I32 (I32.of_int_u stackframe_size));  
-            Binary (I32 I32Op.Add);  
+            Binary (I32 I32Op.Add);
             SetGlobal "__stack_pointer"
           ]  
         else  
           []
       in
-        {f with 
-          locals = [("__local_sp", I32Type)] @ f.locals;
+        {f with           
+          locals = !locals;
           no_of_args = 0;
           body = push_stackframe @ (fix_body [] f.body) @ pop_stackframe
         }  
