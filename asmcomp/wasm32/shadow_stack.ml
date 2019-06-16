@@ -31,8 +31,14 @@ let is_external_call name =
 
 let pointer_size = 8
 
+
 let add_shadow_stack w fns = (
   let func (f:Ast.func) = (
+    let counter = ref 0 in
+    let unique () =
+      counter := !counter + 1;
+      string_of_int !counter
+    in
     let find_function name = 
       List.find_opt (fun (f_name, _, _) -> 
           f_name = name
@@ -132,7 +138,7 @@ let add_shadow_stack w fns = (
          
           let modified_args = List.mapi (fun i a -> 
               let arg_pos = (i + 1) * pointer_size in              
-              let local_name = "ft_" ^ t ^ "_" ^ (string_of_int i) in
+              let local_name = "ft_" ^ t ^ "_" ^ (string_of_int i) ^ (unique()) in
               add_local (local_name, arg_type t i);
               ([SetLocal (local_name, (fix_body [] a))],
                [
@@ -148,7 +154,7 @@ let add_shadow_stack w fns = (
         | Call (function_name, args) :: remaining ->            
             let modified_args = List.mapi (fun i a -> (
                 let arg_pos = (i + 1) * pointer_size in    
-                let local_name = function_name ^ "_" ^ string_of_int i in
+                let local_name = function_name ^ "_" ^ (string_of_int i ^ unique()) in
                 add_local (local_name, arg_type function_name i);
                 if is_external_call function_name then 
                   (fix_body [] a, [])
