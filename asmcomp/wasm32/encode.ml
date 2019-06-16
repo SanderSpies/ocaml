@@ -711,6 +711,8 @@ let encode m =
           put_string s bs
         | Float32 f -> 
           f32 f
+        | Float64 f -> 
+          f64 f
         | Symbol symbol ->
           let p = pos s in          
           let found = ref false in

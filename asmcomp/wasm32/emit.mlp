@@ -72,7 +72,7 @@ let wasm_module = ref {
   (import "env" "caml_write_fd" (func $caml_write_fd (type 1))) (* (type (;1;) (func (param i32 i32 i32 i32) (result i32))) *)
   (import "env" "caml_read_fd" (func $caml_read_fd (type 1))) (* (type (;1;) (func (param i32 i32 i32 i32) (result i32))) *)
   (import "env" "caml_callback2_exn" (func $caml_callback2_exn (type 2))) (*(type (;2;) (func (param i32 i32 i32) (result i32))) *) 
-  *)
+  *)  
   funcs = [{
     name = "jsRaise_i32_i32";
     ftype = "type_";
@@ -383,7 +383,7 @@ let begin_assembly () = (
         };
       }
     ];
-    imports = [
+    imports = [      
       (* {
         module_name = name "env";
         item_name = name "tryWith";
@@ -622,20 +622,20 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       | Ccmpa Cle -> [Compare (I32 I32Op.LeS)]
       | Ccmpa Cgt -> [Compare (I32 I32Op.GtS)]
       | Ccmpa Cge -> [Compare (I32 I32Op.GeS)]
-      | Cnegf -> [Unary (F32 F32Op.Neg)]
-      | Cabsf -> [Unary (F32 F32Op.Abs)]
-      | Caddf -> [Binary (F32 F32Op.Add)]
-      | Csubf -> [Binary (F32 F32Op.Sub)]
-      | Cmulf -> [Binary (F32 F32Op.Mul)]
-      | Cdivf -> [Binary (F32 F32Op.Div)]
-      | Cfloatofint -> [Convert (F32 F32Op.ReinterpretInt)]
+      | Cnegf -> [Unary (F64 F64Op.Neg)]
+      | Cabsf -> [Unary (F64 F64Op.Abs)]
+      | Caddf -> [Binary (F64 F64Op.Add)]
+      | Csubf -> [Binary (F64 F64Op.Sub)]
+      | Cmulf -> [Binary (F64 F64Op.Mul)]
+      | Cdivf -> [Binary (F64 F64Op.Div)]
+      | Cfloatofint -> [Convert (I64 I64Op.ExtendUI32); Convert (F64 F64Op.ReinterpretInt)]
       | Cintoffloat -> [Convert (I32 I32Op.TruncSF64)]
-      | Ccmpf CFeq -> [Compare (F32 F32Op.Eq)]
-      | Ccmpf CFneq -> [Compare (F32 F32Op.Ne)]
-      | Ccmpf CFlt -> [Compare (F32 F32Op.Lt)]
-      | Ccmpf CFle -> [Compare (F32 F32Op.Le)]
-      | Ccmpf CFgt -> [Compare (F32 F32Op.Gt)]
-      | Ccmpf CFge -> [Compare (F32 F32Op.Ge)]
+      | Ccmpf CFeq -> [Compare (F64 F64Op.Eq)]
+      | Ccmpf CFneq -> [Compare (F64 F64Op.Ne)]
+      | Ccmpf CFlt -> [Compare (F64 F64Op.Lt)]
+      | Ccmpf CFle -> [Compare (F64 F64Op.Le)]
+      | Ccmpf CFgt -> [Compare (F64 F64Op.Gt)]
+      | Ccmpf CFge -> [Compare (F64 F64Op.Ge)]
       | Ccmpf CFnlt -> failwith "Not supported yet"
       | Ccmpf CFngt -> failwith "Not supported yet"
       | Ccmpf CFnle -> failwith "Not supported yet"
@@ -647,7 +647,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     match expression with
     | Tconst_int i -> [Const (I32 (I32.of_int_s i))]
     | Tconst_natint i -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
-    | Tconst_float f -> [Const (F32 (F32.of_float f))]  
+    | Tconst_float f -> [Const (F64 (F64.of_float f))]  
     | Tconst_symbol (symbol, _) -> [DataSymbol symbol]
     | Tblockheader (i, _) -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
     | Tvar (ident, _mt, _pos) -> [GetLocal (ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp)]
@@ -860,7 +860,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in  
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
   (* let w = !wasm_module in
   let f = !functions in *)
   let w = Linking.create_symbol_table w f in
@@ -950,7 +950,8 @@ let data dl =
         )
     | Csingle d
     | Cdouble d -> (
-        init := !init @ [Float32 (F32.of_float d)];
+        (* print_endline ("The float is:" ^ string_of_float d); *)
+        init := !init @ [Float64 (F64.of_float d)];
         offset := !offset + 4;
         ()
         )

@@ -106,6 +106,13 @@ type instr =
   | Binary of binop                   (* binary numeric operator *)
   | Convert of cvtop                  (* conversion *)
 
+  (* https://github.com/WebAssembly/exception-handling/blob/master/proposals/Exceptions.md *)
+  (* | Try of stack_type * instr list
+  | Catch of stack_type * instr list
+  | Throw of var
+  | Rethrow
+  | BrOnExn *)
+
 
 (* Globals & Functions *)
 
@@ -190,6 +197,7 @@ type data_part_detail =
   | Int16 of int
   | Int8 of int
   | Float32 of F32.t
+  | Float64 of F64.t
   | Symbol of string
   | FunctionLoc of string
 
