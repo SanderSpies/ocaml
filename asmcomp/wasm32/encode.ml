@@ -552,6 +552,9 @@ let encode m =
       | Convert (F64 F64Op.DemoteF64) -> assert false
       | Convert (F64 F64Op.ReinterpretInt) -> op 0xbf
 
+      | Throw t -> failwith "Exception handling spec not implemented yet"
+      | TryCatch _ -> failwith "Exception handling spec not implemented yet"
+
     let const c =
       list (instr []) c; end_ ()
 

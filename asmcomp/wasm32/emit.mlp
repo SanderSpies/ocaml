@@ -73,7 +73,23 @@ let wasm_module = ref {
   (import "env" "caml_read_fd" (func $caml_read_fd (type 1))) (* (type (;1;) (func (param i32 i32 i32 i32) (result i32))) *)
   (import "env" "caml_callback2_exn" (func $caml_callback2_exn (type 2))) (*(type (;2;) (func (param i32 i32 i32) (result i32))) *) 
   *)  
-  funcs = [{
+  funcs = [
+    (* 
+    FUNCTION(G(caml_callback_exn))
+CFI_STARTPROC
+    /* Save callee-save registers */
+        PUSH_CALLEE_SAVE_REGS
+    /* Initial loading of arguments */
+        movq    C_ARG_1, %rbx      /* closure */
+        movq    C_ARG_2, %rax      /* argument */
+        movq    0(%rbx), %r12      /* code pointer */
+        jmp     LBL(caml_start_program)
+CFI_ENDPROC
+    *)
+    (* {
+
+    }; *)
+    {
     name = "jsRaise_i32_i32";
     ftype = "type_";
     locals = [("temp", I32Type)];
@@ -84,7 +100,10 @@ let wasm_module = ref {
     name = "caml_callback_exn";
     ftype = "i32->i32->i32";
     locals = [("temp", I32Type); ("temp2", I32Type);];
-    body = [Unreachable; Const (I32 0l)];
+    body = [
+    Unreachable      
+
+    ];
     no_of_args = 2
   };
   {
@@ -126,7 +145,11 @@ let wasm_module = ref {
     name = "caml_raise_exception";
     ftype = "raise_i32_ftype";
     locals = [("temp", I32Type)];
-    body = [Unreachable; ];
+    body = [
+      Unreachable
+
+
+    ];
     no_of_args = 1
   };
   {
@@ -244,7 +267,9 @@ CFI_ENDPROC
     name = "caml_start_program";
     ftype = "re_i32";
     locals = [("temp", I32Type)];
-    body = [Call ("caml_program", []); Const (I32 0l)];
+    body = [
+      Call ("caml_program", []); 
+      Const (I32 0l)];
     no_of_args = 1
   }
 (* 
@@ -572,7 +597,8 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       result
     | Cextcall (symbol, mt, _, _), _ ->
       [Call (symbol, el2)] @ (if (mt = typ_void && symbol <> "caml_modify") then [Drop] else [])
-    | Craise _, _ -> [Call ("jsRaise_i32_i32", el2); Return]
+    | Craise _, expr ->       
+      [Throw (List.fold_left (fun all (a, _) -> all @ emit_expr a) [] expr)]
     | _ -> 
       el @ (match operation with 
       | Cload(Byte_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, ZX)}]
@@ -817,14 +843,6 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           (match str with 
           | BWith w when w = i -> ( 
             found := true;
-            (* 
-            Not sure if this is still an issue:
-
-            if (ind <> !position - 1) then (
-              print_endline ("Not expected:" ^ string_of_int ind ^ " does not match: " ^ string_of_int (!position - 1))
-            ) else (
-              print_endline ("Not expected:" ^ string_of_int ind ^ " DOES match: " ^ string_of_int (!position - 1))
-            ); *)
             result := [Br (Int32.of_int (!position - 1))]);          
           | _ -> ());
           position := !position + 1
@@ -832,10 +850,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
               
         el @ !result
       )
-    | Ttrywith  (body, _exn, _handler) ->
-      (* fix later *)
-      print_endline "Wrongly doing Ctrywith: always picking the body for now";
-      emit_expr body
+    | Ttrywith (rt, body, exn, handler) ->
+      let exception_name = exn.Ident.name ^ "_" ^ (string_of_int exn.Ident.stamp) in
+      [TryCatch (rt, emit_expr body, exception_name,emit_expr handler)]
   in
   let body = emit_expr typed_cmm 
   in         
@@ -861,6 +878,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
 
 let end_assembly () =
   let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  let (w, f) = Exception_handling.add_exception_handling w f in
   (* let w = !wasm_module in
   let f = !functions in *)
   let w = Linking.create_symbol_table w f in

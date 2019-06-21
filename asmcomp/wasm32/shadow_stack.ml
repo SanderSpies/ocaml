@@ -94,48 +94,9 @@ let add_shadow_stack w fns = (
         | Block (t, e) :: remaining -> 
           fix_body   (result @ [Block (t, fix_body  [] e)]) remaining        
         | If (t, e1, e2) :: remaining -> 
-          fix_body   (result @ [If (t, fix_body  [] e1, fix_body  [] e2)]) remaining        
-        (* | CallIndirect (t, args) :: remaining -> 
-          let rev_args = List.rev args in
-          let arg_add =  * pointer_size in
-          let prefix = (if (arg_add > 0) then
-            [GetGlobal "__stack_pointer";
-                Const (I32 (I32.of_int_u arg_add)); 
-                Binary (I32 I32Op.Sub);
-                SetGlobal "__stack_pointer"]
-            else
-            []
-          )
-          in
-          let modified_args = List.mapi (fun i a -> 
-              let arg_pos = ( + i + 1) * pointer_size in              
-              [ GetLocal "__local_sp"; 
-                Const (I32 (I32.of_int_u arg_pos)); 
-                Binary (I32 I32Op.Sub)
-              ] 
-              @               
-              (fix_body ( + List.length args - 1) [] a) 
-              @
-              [Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]              
-            ) (List.rev (List.tl rev_args))
-            @ 
-            [fix_body  [] (List.hd rev_args)]          
-          in
-          let postfix = (if (arg_add > 0) then
-            [ GetGlobal "__stack_pointer";
-              Const (I32 (I32.of_int_u arg_add)); 
-              Binary (I32 I32Op.Add);
-              SetGlobal "__stack_pointer"
-            ]
-            else
-            []
-          ) in
-          fix_body  (result @ prefix @ [CallIndirect ("re_i32", modified_args)] @ postfix) remaining *)
-
+          fix_body   (result @ [If (t, fix_body  [] e1, fix_body  [] e2)]) remaining              
         | CallIndirect (t, args) :: remaining -> 
-          let rev_args = List.rev args in
-          (* let arg_add =  * pointer_size in *)
-         
+          let rev_args = List.rev args in         
           let modified_args = List.mapi (fun i a -> 
               let arg_pos = (i + 1) * pointer_size in              
               let local_name = "ft_" ^ t ^ "_" ^ (string_of_int i) ^ (unique()) in
@@ -174,6 +135,8 @@ let add_shadow_stack w fns = (
             ) args 
             in
             fix_body  (result @ [Call (function_name, (List.map fst modified_args) @ (List.map snd modified_args))]) remaining        
+        | TryCatch (s, then_, x, catch_) :: remaining ->
+          fix_body (result @ [TryCatch (s, fix_body [] then_, x, fix_body [] catch_)]) remaining
         | GetLocal x :: remaining -> 
           let i = get_local_position x in
           let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in

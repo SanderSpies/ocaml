@@ -74,6 +74,8 @@ type var = int32
 type literal = Values.value
 type name = int list
 
+type symbol = string
+
 type instr =
   | Unreachable                       (* trap unconditionally *)
   | Nop                               (* do nothing *)
@@ -84,22 +86,22 @@ type instr =
   | BrIf of var                       (* conditional break *)
   | BrTable of var list * var         (* indexed break *)
   | Return                            (* break from function body *)
-  | Call of (string * instr list list)     (* call function *)
-  | CallIndirect of (string * instr list list)    (* call function through table *)
+  | Call of (symbol * instr list list)     (* call function *)
+  | CallIndirect of (symbol * instr list list)    (* call function through table *)
   | Drop                              (* forget a value *)
   | Select                            (* branchless conditional *)
-  | GetLocal of string                (* read local variable *)
-  | SetLocal of (string * instr list)    (* write local variable *)
-  | TeeLocal of string                   (* write local variable and keep value *)
-  | GetGlobal of string               (* read global variable *)
-  | SetGlobal of string               (* write global variable *)
+  | GetLocal of symbol                (* read local variable *)
+  | SetLocal of (symbol * instr list)    (* write local variable *)
+  | TeeLocal of symbol                   (* write local variable and keep value *)
+  | GetGlobal of symbol               (* read global variable *)
+  | SetGlobal of symbol               (* write global variable *)
   | Load of loadop                    (* read memory at address *)
   | Store of storeop                  (* write memory at address *)
   | CurrentMemory                     (* size of linear memory *)
   | GrowMemory                        (* grow linear memory *)
   | Const of literal                  (* constant *)
-  | DataSymbol of string
-  | FuncSymbol of string
+  | DataSymbol of symbol
+  | FuncSymbol of symbol
   | Test of testop                    (* numeric test *)
   | Compare of relop                  (* numeric comparison *)
   | Unary of unop                     (* unary numeric operator *)
@@ -107,11 +109,12 @@ type instr =
   | Convert of cvtop                  (* conversion *)
 
   (* https://github.com/WebAssembly/exception-handling/blob/master/proposals/Exceptions.md *)
+  | TryCatch of stack_type * instr list * string * instr list
+  | Throw of instr list
   (* | Try of stack_type * instr list
-  | Catch of stack_type * instr list
-  | Throw of var
+  | Catch of stack_type * instr list  
   | Rethrow
-  | BrOnExn *)
+  | BrOnExn  *)
 
 
 (* Globals & Functions *)

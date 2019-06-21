@@ -22,7 +22,7 @@ type typed_expression =
   | Tloop of typed_expression
   | Tcatch of rec_flag * (int * Ident.t list * typed_expression) list * typed_expression * stack_type
   | Texit of int * typed_expression list * int
-  | Ttrywith of typed_expression * Ident.t * typed_expression
+  | Ttrywith of stack_type * typed_expression * Ident.t * typed_expression
 
 type stack = machtype Stack.t
 
@@ -380,7 +380,7 @@ let rec process env e =
         add_local (ident exn, rt);
         let handler = process env handler in
         pop ();
-        let result = Ttrywith (body, exn, handler) in
+        let result = Ttrywith (mach_to_wasm rt, body, exn, handler) in
         push rt;
         check_stack_plus_one();
         result
