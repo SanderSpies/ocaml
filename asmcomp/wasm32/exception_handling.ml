@@ -9,6 +9,14 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
         ) fns
     in
     let func (f:Ast.func) = (
+         let get_local_position name = (
+            let rec find counter = function
+            | (local_, _) :: _ when local_ = name -> counter
+            | _ ::  rest -> find (counter + 1) rest
+            | [] -> assert false
+            in
+            find 0 f.locals )
+        in
         let handle_exception = ref false in 
         let exception_depth = ref 0l in   
         let rec fix_body result (il:Ast.instr list) = (
@@ -29,7 +37,11 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                 exception_depth := Int32.sub !exception_depth 1l;
                 result
             | TryCatch (s, then_, exception_name, catch_) :: remaining ->
-                print_endline ("Not properly handled yet:" ^ exception_name);    
+                let i = get_local_position exception_name in 
+                (* print_endline ("Not properly handled yet:" ^ exception_name ^ ":" ^ (string_of_int x)); *)
+                let pointer_size = Shadow_stack.pointer_size in
+                let stackframe_size = (List.length (List.filter (fun (name, _) -> (String.length name < 13 || String.sub name 0 13 <> "shadow_stack_" )) f.locals)) * pointer_size in
+                let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
                 exception_depth := 0l;           
                 let result = fix_body (result @ 
                     [Block (s, 
@@ -45,6 +57,16 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                             [
                                 Br 1l
                             ])
+                        ]
+                        @
+                        [                            
+                            GetLocal "__local_sp";
+                            DataSymbol "_exception_thrown";
+                            Load {ty = I32Type; align = 0; offset = 0l; sz = None};
+                            Store {ty = I32Type; align = 0; offset; sz = None};
+                            DataSymbol "_exception_thrown";
+                            Const (I32 0l);
+                            Store {ty = I32Type; align = 0; offset = 0l; sz = None}
                         ]
                         @
                         (fix_body [] catch_)
@@ -90,7 +112,11 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     result @ 
                     [
                         DataSymbol "_exception_thrown";                      
-                        Const (I32 1l);
+                    ]
+                    @
+                    e
+                    @
+                    [                        
                         Store {ty = I32Type; align = 0; offset = 0l; sz = None};
                     ]
                     @
@@ -98,12 +124,8 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         GetGlobal "__stack_pointer";
                         Const (I32 (I32.of_int_u ((List.length f.locals - 1) * Shadow_stack.pointer_size)));  
                         Binary (I32 I32Op.Add);
-                        SetGlobal "__stack_pointer"
-                    ]  
-                    @
-                    e
-                    @
-                    [
+                        SetGlobal "__stack_pointer";
+                        Const (I32 1l);
                         Return
                     ]  
                 ) remaining
@@ -121,18 +143,10 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     Load {ty = I32Type; align = 0; offset = 0l; sz = None};
                     If ([], 
                         (
-                            [
-                                DataSymbol "_exception_thrown";
-                                Const (I32 0l);
-                                Store {ty = I32Type; align = 0; offset = 0l; sz = None};
-                            ]
-                        )
-                        @
-                        (
                             if !handle_exception then 
                                 [Br (I32.add !exception_depth 1l)]
                             else
-                                [ 
+                                [                                     
                                     GetGlobal "__stack_pointer";
                                     Const (I32 (I32.of_int_u ((List.length f.locals - 1) * Shadow_stack.pointer_size)));  
                                     Binary (I32 I32Op.Add);

@@ -175,7 +175,7 @@ WASMCOMP=\
   asmcomp/numeric_error.cmo asmcomp/int.cmo asmcomp/i32.cmo asmcomp/i64.cmo \
   asmcomp/lib.cmo asmcomp/wasm_types.cmo asmcomp/float.cmo asmcomp/f32.cmo asmcomp/f64.cmo \
   asmcomp/values.cmo asmcomp/ast.cmo asmcomp/utf8.cmo asmcomp/typed_cmm.cmo asmcomp/linking.cmo \
-  asmcomp/shadow_stack.cmo \
+  asmcomp/shadow_stack.cmo asmcomp/exception_handling.cmo \
   asmcomp/emitaux.cmo asmcomp/encode.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
   driver/opterrors.cmo driver/optcompile.cmo
@@ -1018,6 +1018,10 @@ asmcomp/linking.ml: asmcomp/wasm32/linking.ml
 asmcomp/shadow_stack.ml: asmcomp/wasm32/shadow_stack.ml
 	cd asmcomp; $(LN) wasm32/shadow_stack.ml .
 
+asmcomp/exception_handling.ml: asmcomp/wasm32/exception_handling.ml
+	cd asmcomp; $(LN) wasm32/exception_handling.ml .
+
+
 # asmcomp/emit.ml: asmcomp/ast.ml
 
 
@@ -1037,6 +1041,7 @@ partialclean::
 	rm -f asmcomp/linking.ml
 	rm -f asmcomp/encode.ml
 	rm -f asmcomp/shadow_stack.ml
+	rm -f asmcomp/exception_handling.ml
 
 else 
 
@@ -1491,6 +1496,7 @@ wasm32:
 	rm -f asmcomp/typed_cmm.cmo
 	rm -f asmcomp/linking.cmo	
 	rm -f asmcomp/shadow_stack.cmo
+	rm -f asmcomp/exception_handling.cmo
 	rm -f asmcomp/emit.cmo
 	rm -f asmcomp/encode.cmo
 	rm -f asmcomp/asmgen.cmo	

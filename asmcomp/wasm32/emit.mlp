@@ -781,14 +781,15 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       let depth = ref 0 in
       let rec create_block ints remaining =
         match ints, remaining with
-        | _i :: re, expr :: rest -> (
+        | i :: re, expr :: rest -> (
+          
           Stack.push BCswitch_case block_stack;
           let body = emit_expr expr in            
           depth := !depth + 1;            
           let child_block = create_block re rest in            
           let e = (child_block @ body) in 
           
-          let expr = (e @ (match expr with | Texit _ -> [] | _ when (!depth - 1) <> List.length remaining ->  [Br (Int32.of_int (List.length ea - !depth + 2))] | _ -> [] ))  in
+          let expr = (e @ (match expr with | Texit _ -> [] | _ when (!depth - 1) <> List.length remaining ->  [Br (Int32.of_int i)] | _ -> [] ))  in
           let block_type = (if List.length remaining <> List.length ea then         
             []
           else
@@ -804,7 +805,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           let tb = BrTable (List.map (fun f -> Int32.of_int (List.length ea - f)) ia, 0l) in
           let e = emit_expr sw in
           depth := !depth + 1;
-          let expr = ([Const (I32 1l)] @ e @ [Binary (I32 I32Op.Sub)] @ [tb]) in
+          let expr = e @ [tb] in
           let table_body = [Block ([], expr)] in
           ignore(Stack.pop block_stack);
           ignore(Stack.pop block_stack);
@@ -851,7 +852,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         el @ !result
       )
     | Ttrywith (rt, body, exn, handler) ->
-      let exception_name = exn.Ident.name ^ "_" ^ (string_of_int exn.Ident.stamp) in
+      let exception_name = exn.Ident.name ^ "/" ^ (string_of_int exn.Ident.stamp) in
       [TryCatch (rt, emit_expr body, exception_name,emit_expr handler)]
   in
   let body = emit_expr typed_cmm 
