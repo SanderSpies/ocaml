@@ -200,6 +200,7 @@ module type Optcomp_options = sig
   include Common_options
   include Compiler_options
   include Optcommon_options
+  val _dwasmtree : unit -> unit
   val _linscan : unit -> unit
   val _no_float_const_prop : unit -> unit
   val _nodynlink : unit -> unit

@@ -161,6 +161,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dflambda_let stamp = option_with_int "-dflambda-let" stamp
   let _dflambda_verbose = option "-dflambda-verbose"
   let _dcmm = option "-dcmm"
+  let _dwasmtree = option "-dwasmtree"
   let _dsel = option "-dsel"
   let _dcombine = option "-dcombine"
   let _dcse = option "-dcse"

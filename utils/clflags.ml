@@ -111,6 +111,7 @@ let optimize_for_speed = ref true       (* -compact *)
 and opaque = ref false                  (* -opaque *)
 
 and dump_cmm = ref false                (* -dcmm *)
+and dump_wasmtree = ref false           (* -dwasmtree *)
 let dump_selection = ref false          (* -dsel *)
 let dump_cse = ref false                (* -dcse *)
 let dump_live = ref false               (* -dlive *)
