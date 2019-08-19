@@ -74,7 +74,7 @@ let add_shadow_stack w fns = (
         | None -> I32Type
       )
       in
-      let stackframe_size = (List.length f.locals + 1) * pointer_size in
+      let stackframe_size = (List.length f.locals) * pointer_size in
 
       let push_stackframe =
         (if stackframe_size > 0 then 
