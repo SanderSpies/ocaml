@@ -391,22 +391,7 @@ let begin_assembly () = (
       {tname = "i32->i32->i32->i32"; tdetails = Types.FuncType ([Types.I32Type; Types.I32Type; Types.I32Type; ], [Types.I32Type])}
     ];
     data =  [
-      {
-        index =  0l;
-        offset = [Const (I32 0l)];
-        init = {
-          name = "caml_globals_inited";
-          detail = [Int32 0l]
-        };
-      }; 
-      {
-        index =  0l;
-        offset = [Const (I32 1l)];
-        init = {
-          name = "caml_backtrace_pos";
-          detail = [Int32 0l]
-        };
-      }
+      
     ];
     imports = [      
       (* {
@@ -431,24 +416,7 @@ let begin_assembly () = (
       }
     ];
     symbols = [
-      {
-        name = "caml_globals_inited";
-        details = Data ({
-          index = 0l;
-          relocation_offset = 0l;
-          size =  1l;
-          offset = 0l;
-        })
-      };
-      {
-        name = "caml_backtrace_pos";
-        details = Data ({      
-          index = 1l;
-          relocation_offset = 0l;
-          size =  4l;
-          offset = 1l;
-        })
-      };
+      
       {
         name = "caml_modify";
         details = Import ([I32Type; I32Type], [])
@@ -478,8 +446,7 @@ let begin_assembly () = (
       {
         name = "caml_int64_equal";
         details = Import ([I64Type; I64Type], [I32Type])
-      };
-      
+      };      
       (* {
         name = "caml_sys_time_unboxed";
         details = Import ([], [F64Type])
@@ -933,7 +900,7 @@ let data dl =
         | _ -> false
     in
     List.iter (function
-    | Cglobal_symbol _ -> ()
+    | Cglobal_symbol s -> print_endline ("Global: " ^ s)
     | Csymbol_address symbol -> (            
         let add =
           if is_closure then               
@@ -945,7 +912,7 @@ let data dl =
         offset := !offset + 4;
         ()
         )
-    | Cdefine_symbol symbol -> 
+    | Cdefine_symbol symbol ->       
       symbol_name := symbol
     | Cint8 i -> (
         init := !init @ [Int8 i];
@@ -1010,6 +977,7 @@ let data dl =
 
     (* to make sure that this is always seen as data and not an integer *)
     (if !global_offset land 1 <> 0 then global_offset := !global_offset + 1);
+    print_endline ("SYMBOL: " ^ !symbol_name);
     wasm_module := Ast.{w with data = w.data @ [{
       index =  0l;
       offset = [Const (I32 (I32.of_int_s start_offset))];

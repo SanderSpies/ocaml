@@ -704,7 +704,7 @@ let encode m =
       section 9 (vec table_segment) elems (elems <> [])
 
     let count_it = ref 0
-    let data_part_list (data_part_list:data_part) =      
+    let data_part_list (data_part_list: data_part) =      
       count_it := !count_it + 1;
       let g = gap32 () in      
       let start = pos s in
@@ -781,9 +781,9 @@ let encode m =
             u8 4;
             vu32 (Int32.sub offset !code_pos);
             vs32_fixed (Int32.of_int symbol_index); 
-            (* if symbol_ = "caml_globals_inited" || symbol_ = "caml_backtrace_pos" || index = (-1l) then
+            if symbol_ = "caml_globals_inited" (* || symbol_ = "caml_backtrace_pos" || index = (-1l) *) then
               vs32 0l
-            else *)
+            else
               vs32 4l            
           | Import _
           | Function when s.name = symbol_ -> 
@@ -855,7 +855,13 @@ let encode m =
             u8 5;
             vu32 (Int32.sub offset !data_pos);
             vu32 (Int32.of_int !symbol_index);
-            vs32 4l
+            (* TODO: make more elegant *)
+            let len = String.length symbol_ in
+            let gc_roots_length = String.length "__gc_roots" in            
+            if len > gc_roots_length && String.sub symbol_ (len - gc_roots_length) gc_roots_length = "__gc_roots" then
+              vs32 0l
+            else 
+              vs32 4l
         )
       ) !data_relocations
 

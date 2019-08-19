@@ -74,7 +74,7 @@ let add_shadow_stack w fns = (
         | None -> I32Type
       )
       in
-      let stackframe_size = (List.length f.locals) * pointer_size in
+      let stackframe_size = (List.length f.locals + 1) * pointer_size in
 
       let push_stackframe =
         (if stackframe_size > 0 then 
@@ -233,12 +233,12 @@ let add_shadow_stack w fns = (
         type_ t 
       )
     ) w.types;
-    symbols = List.map (fun s -> 
+    symbols = (List.map (fun s -> 
       if is_external_call s.name then 
         s
       else 
         symbol s    
-    ) w.symbols;  
+    ) w.symbols);  
   }, List.map (fun (name, rt, args) -> 
     if is_external_call name then
       (name, rt, args)

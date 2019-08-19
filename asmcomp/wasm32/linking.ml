@@ -180,7 +180,7 @@ let create_symbol_table m fti = (
   check_duplicates m.Ast.symbols;
   let add_missing_memory_addresses () = Ast.(  
     let result = ref m in
-    List.iter (fun (s:data_part segment) -> 
+    List.iter (fun (s:data_part segment) ->       
       List.iter (fun d -> 
         match d with 
         | Symbol symbol -> (
