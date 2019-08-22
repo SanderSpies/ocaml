@@ -394,6 +394,11 @@ let begin_assembly () = (
       
     ];
     imports = [      
+      {
+        module_name = name "spectest";
+        item_name = name "print_i32";
+        idesc = FuncImport "raise_i32_ftype"
+      }
       (* {
         module_name = name "env";
         item_name = name "tryWith";
@@ -867,6 +872,19 @@ let end_assembly () =
       locals = [("temp", I32Type)];
       body = [Unreachable; Const (I32 0l)];
       no_of_args = 1
+    }; {
+      name = "stack_bottom";
+      ftype = "re_i32";
+      locals = [];
+      (* TODO: print last 10 stack values *)
+      body = [
+        (* Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 32l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 24l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 16l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 8l); Binary (I32 I32Op.Add)]]); *)
+        GetGlobal "__stack_pointer"        
+      ];
+      no_of_args = 0;
     }];
     start = None;
     elems = [];
@@ -900,7 +918,7 @@ let data dl =
         | _ -> false
     in
     List.iter (function
-    | Cglobal_symbol s -> print_endline ("Global: " ^ s)
+    | Cglobal_symbol _ -> () (* print_endline ("Global: " ^ s) *)
     | Csymbol_address symbol -> (            
         let add =
           if is_closure then               
@@ -977,7 +995,6 @@ let data dl =
 
     (* to make sure that this is always seen as data and not an integer *)
     (if !global_offset land 1 <> 0 then global_offset := !global_offset + 1);
-    print_endline ("SYMBOL: " ^ !symbol_name);
     wasm_module := Ast.{w with data = w.data @ [{
       index =  0l;
       offset = [Const (I32 (I32.of_int_s start_offset))];

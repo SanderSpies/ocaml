@@ -858,7 +858,8 @@ let encode m =
             (* TODO: make more elegant *)
             let len = String.length symbol_ in
             let gc_roots_length = String.length "__gc_roots" in            
-            if len > gc_roots_length && String.sub symbol_ (len - gc_roots_length) gc_roots_length = "__gc_roots" then
+            let frametable_length = String.length "__frametable" in
+            if symbol_ = "caml_frametable" || ( len > gc_roots_length && String.sub symbol_ (len - gc_roots_length) gc_roots_length = "__gc_roots") || ( len > frametable_length && String.sub symbol_ (len - frametable_length) frametable_length = "__frametable") then
               vs32 0l
             else 
               vs32 4l

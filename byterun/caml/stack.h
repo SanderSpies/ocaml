@@ -31,7 +31,7 @@
 #endif
 #endif
 
-#ifdef EMSCRIPTEN
+#ifdef WASM32
 #define Saved_return_address(sp) *((intnat *)((sp) - 4))
 #define Callback_link(sp) ((struct caml_context *)((sp) + 4))
 #endif
