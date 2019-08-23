@@ -23,7 +23,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
-#include "caml/fail.h"
+// FIXME someday: #include "caml/fail.h"
 #include "caml/memory.h"
 #include "caml/osdeps.h"
 #include "caml/signals.h"
@@ -92,7 +92,7 @@ DECLARE_SIGNAL_HANDLER(handle_signal)
   int saved_errno;
   /* Save the value of errno (PR#5982). */
   saved_errno = errno;
-#if !defined(POSIX_SIGNALS) && !defined(BSD_SIGNALS)
+#if !defined(POSIX_SIGNALS) && !defined(BSD_SIGNALS) && !defined(WASM32)
   signal(sig, handle_signal);
 #endif
   if (sig < 0 || sig >= NSIG) return;
@@ -121,6 +121,7 @@ int caml_set_signal_action(int signo, int action)
   signal_handler act;
 #endif
 
+#ifndef WASM32
 #ifdef POSIX_SIGNALS
   switch(action) {
   case 0:
@@ -153,6 +154,10 @@ int caml_set_signal_action(int signo, int action)
     return 1;
   else
     return 0;
+  #endif
+  #ifdef WASM32
+  return 0;
+  #endif
 }
 
 /* Machine- and OS-dependent handling of bound check trap */

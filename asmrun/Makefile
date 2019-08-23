@@ -85,7 +85,7 @@ COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
 
 # TODO: ADD SWITCH FOR WASM
 COBJS=startup_aux.$(O) startup.$(O) main.$(O) fail.$(O)		\
-  roots.$(O) signals.$(O) misc.$(O) freelist.$(O)	\
+  roots.$(O) signals.$(O) signals_asm.$(O) misc.$(O) freelist.$(O)	\
   major_gc.$(O) minor_gc.$(O) memory.$(O) alloc.$(O) compare.$(O)	\
   ints.$(O) floats.$(O) str.$(O) array.$(O) io.$(O) extern.$(O)		\
   intern.$(O) hash.$(O) sys.$(O) parsing.$(O) gc_ctrl.$(O)		\

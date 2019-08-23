@@ -781,7 +781,7 @@ let encode m =
             u8 4;
             vu32 (Int32.sub offset !code_pos);
             vs32_fixed (Int32.of_int symbol_index); 
-            if symbol_ = "caml_globals_inited" (* || symbol_ = "caml_backtrace_pos" || index = (-1l) *) then
+            if symbol_ = "caml_globals_inited"  (* || symbol_ = "caml_backtrace_pos" || index = (-1l) *) then
               vs32 0l
             else
               vs32 4l            
@@ -859,6 +859,7 @@ let encode m =
             let len = String.length symbol_ in
             let gc_roots_length = String.length "__gc_roots" in            
             let frametable_length = String.length "__frametable" in
+            (* print_endline ("A1:" ^ symbol_); *)
             if symbol_ = "caml_frametable" || ( len > gc_roots_length && String.sub symbol_ (len - gc_roots_length) gc_roots_length = "__gc_roots") || ( len > frametable_length && String.sub symbol_ (len - frametable_length) frametable_length = "__frametable") then
               vs32 0l
             else 

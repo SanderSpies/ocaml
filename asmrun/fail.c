@@ -57,8 +57,14 @@ CAMLnoreturn_end;
 
 char * caml_exception_pointer = NULL;
 
+extern char * _exception_thrown;
+
 void caml_raise(value v)
 {
+#ifdef WASM32  
+  caml_raise_exception(v);
+#elif
+  
   Unlock_exn();
   if (caml_exception_pointer == NULL) caml_fatal_uncaught_exception(v);
 
@@ -74,6 +80,7 @@ void caml_raise(value v)
 #undef PUSHED_AFTER
 
   caml_raise_exception(v);
+#endif
 }
 
 void caml_raise_constant(value tag)

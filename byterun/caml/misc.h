@@ -50,7 +50,11 @@ typedef char * addr;
    Note: CAMLnoreturn is a different macro defined in memory.h,
    to be used in function bodies rather than as a prototype attribute.
 */
-#ifdef __GNUC__
+#ifdef WASM32
+  #define CAMLnoreturn_start
+  #define CAMLnoreturn_end
+  #define Noreturn
+#elif __GNUC__
   /* Works only in GCC 2.5 and later */
   #define CAMLnoreturn_start
   #define CAMLnoreturn_end __attribute__ ((noreturn))

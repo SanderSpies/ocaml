@@ -97,6 +97,38 @@ CFI_ENDPROC
     no_of_args = 1
   };  
   {
+    name = "getpid";
+    ftype = "re_i32";
+    locals = [];
+    body = [
+      Const (I32 9999l)
+    ];
+    no_of_args = 0
+  };
+  {
+    name = "getppid";
+    ftype = "re_i32";
+    locals = [];
+    body = [
+      Const (I32 5l)
+    ];
+    no_of_args = 0
+  };
+  {
+      name = "stack_bottom";
+      ftype = "re_i32";
+      locals = [];
+      (* TODO: print last 10 stack values *)
+      body = [
+        (* Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 32l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 24l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 16l); Binary (I32 I32Op.Add)]]);
+        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 8l); Binary (I32 I32Op.Add)]]); *)
+        GetGlobal "__stack_pointer"        
+      ];
+      no_of_args = 0;
+    };
+  {
     name = "caml_callback_exn";
     ftype = "i32->i32->i32";
     locals = [("temp", I32Type); ("temp2", I32Type);];
@@ -144,7 +176,7 @@ CFI_ENDPROC
   {
     name = "caml_raise_exception";
     ftype = "raise_i32_ftype";
-    locals = [("temp", I32Type)];
+    locals = [("value", I32Type)];
     body = [
       Unreachable
 
@@ -378,7 +410,7 @@ let begin_assembly () = (
         name = "max_young_wosize";
         gtype = Types.GlobalType (Types.I32Type, Types.Immutable);
         value = [Const (I32 256l)]
-      }
+      };
     ];
     types = [
       {tname = "jsTryWithType"; tdetails = Types.FuncType ([Types.I32Type;Types.I32Type;Types.I32Type], [])};
@@ -567,7 +599,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       let result = i @ [If ([], t, e)] in
       ignore(Stack.pop block_stack);
       result
-    | Cextcall (symbol, mt, _, _), _ ->
+    | Cextcall (symbol, mt, _, _), _ ->   
       [Call (symbol, el2)] @ (if (mt = typ_void && symbol <> "caml_modify") then [Drop] else [])
     | Craise _, expr ->       
       [Throw (List.fold_left (fun all (a, _) -> all @ emit_expr a) [] expr)]
@@ -684,16 +716,6 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         lst @ (emit_expr f)
       ) [] el    
     | Top (Capply mt, (Top (Cload _ as op, el, _, _), _)::tl, _, _) -> ( 
-      (* (match mt with 
-      | [|Val|] -> print_endline "typ_val"
-      | [|Addr|] -> print_endline "typ_addr"
-      | [|Int|] -> print_endline "typ_int"
-      | [|Float|] -> print_endline "typ_float"
-      | [||] -> print_endline "typ_void"
-      | _ -> print_endline "other");
-      print_endline ("TEST:" ^ fun_name);
-      print_endline ("TL length:" ^ (string_of_int (List.length tl)));
-      print_endline ("EL length:" ^ (string_of_int (List.length el))); *)
       let fn_args = ref [] in
       let tl = List.rev tl in
       let expression_list = List.fold_left (fun lst (f, ft) ->
@@ -728,8 +750,10 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           [Drop] 
         else       
           [] 
-      in      
-      [Call (hd, expression_list)] @ drop  
+      in           
+      [Call (hd, expression_list)] 
+      @ 
+      drop  
     )
     | Top (operation, expression_list, _, _) -> to_operations expression_list operation
     | Tsequence (e, Ttuple []) -> emit_expr e @ [Drop]        
@@ -825,7 +849,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       )
     | Ttrywith (rt, body, exn, handler) ->
       let exception_name = exn.Ident.name ^ "/" ^ (string_of_int exn.Ident.stamp) in
-      [TryCatch (rt, emit_expr body, exception_name,emit_expr handler)]
+      [TryCatch (rt, emit_expr body, exception_name, emit_expr handler)]
   in
   let body = emit_expr typed_cmm 
   in         
@@ -866,35 +890,13 @@ let end_assembly () =
       (* TODO: this needs to be improved when doing GC *)
       mtype = MemoryType {min = 100000l; max = Some 100000l}
     }];
-    funcs = [{
-      name = "jsRaise_i32_i32";
-      ftype = "type_";
-      locals = [("temp", I32Type)];
-      body = [Unreachable; Const (I32 0l)];
-      no_of_args = 1
-    }; {
-      name = "stack_bottom";
-      ftype = "re_i32";
-      locals = [];
-      (* TODO: print last 10 stack values *)
-      body = [
-        (* Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 32l); Binary (I32 I32Op.Add)]]);
-        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 24l); Binary (I32 I32Op.Add)]]);
-        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 16l); Binary (I32 I32Op.Add)]]);
-        Call ("print_i32", [[GetGlobal "__stack_pointer"; Const (I32 8l); Binary (I32 I32Op.Add)]]); *)
-        GetGlobal "__stack_pointer"        
-      ];
-      no_of_args = 0;
-    }];
+    funcs = [];
     start = None;
     elems = [];
     data = [];
     imports = [];
     exports = [];
-    symbols = [{
-      name = "jsRaise_i32_i32";
-      details = Function
-    }];
+    symbols = [];
   }
 
 let data dl =
