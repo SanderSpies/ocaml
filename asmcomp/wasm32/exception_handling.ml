@@ -19,6 +19,9 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
         } 
     )
     in
+    let calc_stackframe_size locals = 
+        (List.length (List.filter (fun (name, _) -> (String.length name < 13 || String.sub name 0 13 <> "shadow_stack_" )) locals))
+    in
     let func (f: Ast.func) = (
          let get_local_position name = (
             let rec find counter = function
@@ -39,9 +42,8 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                 fix_body type_ exception_depth (result @ [If (t, fix_body type_ (Int32.add exception_depth 1l) [] e1, fix_body type_ (Int32.add exception_depth 1l) [] e2)]) remaining                
             | TryCatch (s, then_, exception_name, catch_) :: remaining ->
                 let i = get_local_position exception_name in 
-                let pointer_size = Shadow_stack.pointer_size in
-                let stackframe_size = (List.length (List.filter (fun (name, _) -> (String.length name < 13 || String.sub name 0 13 <> "shadow_stack_" )) f.locals)) * pointer_size in
-                let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
+                let stackframe_size = calc_stackframe_size f.locals in
+                let offset = I32.of_int_u ((stackframe_size - (i + 1)) * Shadow_stack.pointer_size) in
                 let result = fix_body type_ exception_depth (result @ 
                     [Block (s, 
                         [Block (
@@ -65,6 +67,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                             Const (I32 1l);
                             Binary (I32 I32Op.ShrU);
                             Store {ty = I32Type; align = 0; offset; sz = None};
+                            
                             DataSymbol "_exception_thrown";
                             Const (I32 0l);
                             Store {ty = I32Type; align = 0; offset = 0l; sz = None}
@@ -94,8 +97,8 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                             )
                             else (
                                 [ 
-                                    GetGlobal "__stack_pointer";
-                                    Const (I32 (I32.of_int_u ((List.length f.locals - 1) * Shadow_stack.pointer_size)));  
+                                    GetGlobal "__stack_pointer";                                    
+                                    Const (I32 (I32.of_int_u (((calc_stackframe_size f.locals) - 1) * Shadow_stack.pointer_size)));  
                                     Binary (I32 I32Op.Add);
                                     SetGlobal "__stack_pointer"
                                 ]  
@@ -131,7 +134,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     @
                     [ 
                         GetGlobal "__stack_pointer";
-                        Const (I32 (I32.of_int_u ((List.length f.locals - 1) * Shadow_stack.pointer_size)));  
+                        Const (I32 (I32.of_int_u (((calc_stackframe_size f.locals) - 1) * Shadow_stack.pointer_size)));  
                         Binary (I32 I32Op.Add);
                         SetGlobal "__stack_pointer";
                         Const (I32 1l);
@@ -159,7 +162,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                             else
                                 [                                     
                                     GetGlobal "__stack_pointer";
-                                    Const (I32 (I32.of_int_u ((List.length f.locals - 1) * Shadow_stack.pointer_size)));  
+                                    Const (I32 (I32.of_int_u (((calc_stackframe_size f.locals) - 1) * Shadow_stack.pointer_size)));  
                                     Binary (I32 I32Op.Add);
                                     SetGlobal "__stack_pointer"
                                 ]  
