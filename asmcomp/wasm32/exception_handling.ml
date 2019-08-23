@@ -61,9 +61,9 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         [                            
                             GetLocal "__local_sp";
                             DataSymbol "_exception_thrown";
+                            Load {ty = I32Type; align = 0; offset = 0l; sz = None};
                             Const (I32 1l);
                             Binary (I32 I32Op.ShrU);
-                            Load {ty = I32Type; align = 0; offset = 0l; sz = None};
                             Store {ty = I32Type; align = 0; offset; sz = None};
                             DataSymbol "_exception_thrown";
                             Const (I32 0l);
@@ -112,7 +112,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         ), 
                         []);
                 ]) remaining   
-            | Throw e :: remaining ->
+            | Throw e :: _ ->
                 fix_body type_ exception_depth (
                     result @ 
                     [
@@ -137,7 +137,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         Const (I32 1l);
                         Return
                     ]  
-                ) remaining
+                ) [] (* skip remaining here as it won't be processed due to 'Return' *)
             | SetLocal (s, i) :: remaining ->
                 fix_body type_ exception_depth (result @ [SetLocal (s, fix_body type_ exception_depth [] i)]) remaining
             | Call (function_name, args) :: remaining -> (
