@@ -192,10 +192,21 @@ let add_shadow_stack w fns = (
         else  
           []
       in
+      let add_pop_stack l =
+        let reversed = List.rev l in
+        let before = List.rev (List.tl reversed) in
+        let last = List.hd reversed in
+        match last with
+        | Br n -> before @ pop_stackframe @ [Br n]
+        | Return -> before @ pop_stackframe @ [Return]
+        | Throw t -> before @ pop_stackframe @ [Throw t]
+        | Drop -> before @ pop_stackframe @ [Drop]
+        | _ -> l @ pop_stackframe
+      in
         {f with           
           locals = !locals;
           no_of_args = 0;
-          body = push_stackframe @ (fix_body [] f.body) @ pop_stackframe
+          body = push_stackframe @ (add_pop_stack (fix_body [] f.body))
         }  
     )
   )  

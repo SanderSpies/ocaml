@@ -48,12 +48,12 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         [Block (
                             [],
                             (
-                                fix_body true s 0l [] then_                            
-                            )
-                            @
-                            [
-                                Br 1l
-                            ])
+                                let body = fix_body true s 0l [] then_  
+                                in                                 
+                                match (List.nth (List.rev body) 0) with
+                                | Br x -> (List.rev (List.tl (List.rev body))) @ [Br (Int32.add x 1l)]
+                                | _ -> body @ [Br 1l]
+                            ))
                         ]
                         @
                         [                            
@@ -111,7 +111,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         ), 
                         []);
                 ]) remaining   
-            | Throw e :: _ ->
+            | Throw e :: _ ->                
                 fix_body handle_exception type_ exception_depth (
                     result @ 
                     [
@@ -120,18 +120,15 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     @
                     e
                     @
-                    [
+                    (if handle_exception then
+                        [Br exception_depth]
+                    else 
+                    [ 
                         Const (I32 1l);
                         Binary (I32 I32Op.Shl);
                         Const (I32 1l);
                         Binary (I32 I32Op.Add);
                         Store {ty = I32Type; align = 0; offset = 0l; sz = None};
-                    ]
-                    @
-                    (if handle_exception then
-                        [Br exception_depth]
-                    else 
-                    [ 
                         GetGlobal "__stack_pointer";
                         Const (I32 (I32.of_int_u (((calc_stackframe_size f.locals) - 1) * Shadow_stack.pointer_size)));  
                         Binary (I32 I32Op.Add);
@@ -139,7 +136,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         Const (I32 1l);
                         Return
                     ])
-                ) [] (* skip remaining here as it won't be processed due to 'Return' *)
+                ) []
             | SetLocal (s, i) :: remaining ->
                 fix_body handle_exception type_ exception_depth (result @ [SetLocal (s, fix_body handle_exception type_ exception_depth [] i)]) remaining
             | Call (function_name, args) :: remaining -> (
