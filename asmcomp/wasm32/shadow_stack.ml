@@ -103,7 +103,7 @@ let add_shadow_stack w fns = (
               add_local (local_name, arg_type t i);
               ([SetLocal (local_name, (fix_body [] a))],
                [
-                 GetLocal "__local_sp";
+                 GetGlobal "__stack_pointer";
                   Const (I32 (I32.of_int_u arg_pos)); 
                   Binary (I32 I32Op.Sub);
                   GetLocal local_name;
@@ -123,7 +123,7 @@ let add_shadow_stack w fns = (
                   (                              
                     ([SetLocal (local_name, (fix_body [] a))],
                      [
-                      GetLocal "__local_sp";
+                      GetGlobal "__stack_pointer";
                       Const (I32 (I32.of_int_u arg_pos)); 
                       Binary (I32 I32Op.Sub);
                       GetLocal local_name;

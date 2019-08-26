@@ -582,7 +582,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     | Ccheckbound, [(fst, _); (snd, _)] -> 
       let fst = emit_expr fst in
       let snd = emit_expr snd in    
-      Stack.push BCheckbound1 block_stack;    
+      Stack.push BCheckbound1 block_stack;
       let i = fst @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] in
       let t = [
         
