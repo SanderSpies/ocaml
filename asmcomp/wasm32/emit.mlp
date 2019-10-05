@@ -510,6 +510,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   let (typed_cmm, rt, locals, fns) = Typed_cmm.add_types fun_name fun_args fun_body in
   let args = List.fold_left (fun a b -> a @ (Typed_cmm.mach_to_wasm (snd b))) [] fun_args in
   functions := fns;
+
+  let ccatch_mapping: (int * int * string) list ref = ref [] in
+
+  let find_ccatch_name i pos = 
+    let rec find i pos mapping =
+      match mapping with 
+      | (i_, pos_, name) :: _ when i_ = i && pos_ = pos -> name
+      | _ :: remaining -> find i pos remaining
+      | _ -> assert false
+    in
+    find i pos !ccatch_mapping
+  in
   let locals = ref locals in
   let add_local local =
     locals := !locals @ [local];  
@@ -842,7 +854,11 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       ignore(Stack.pop block_stack);
       result
 
-    | Tcatch  (_, (i, _il, expr) :: [], body, rt) -> (  
+    | Tcatch  (_, (i, il, expr) :: [], body, rt) -> (  
+      List.iter (fun i -> ignore(add_local ((i.Ident.name ^ "/" ^ (string_of_int i.Ident.stamp)), typ_int))) il;      
+      List.iteri (fun pos id -> 
+        ccatch_mapping := !ccatch_mapping @ [(i, pos, (id.Ident.name ^ "/" ^ (string_of_int id.Ident.stamp)))]
+      ) il;
       Stack.push (BWith i) block_stack;
       let with_ = emit_expr expr in            
       Stack.push BCcatch block_stack;
@@ -858,9 +874,14 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       (
         (* problem: in some cases exit doesn't go to the right location, 
                     could be because try with isn't handled properly? *)
+        print_endline ("2 exit to " ^ string_of_int i ^ " has " ^ string_of_int (List.length el) ^ " expressions");
+        let pos = ref 0 in
         let el = List.fold_left (fun all e ->
-          all @ (emit_expr e)
-        ) [] el in
+          let local_name = find_ccatch_name i !pos in
+          pos := !pos + 1;
+          print_endline ("set local: " ^ local_name);
+          all @ [SetLocal (local_name, emit_expr e)]
+        ) [] el in        
         let position = ref 0 in
         let found = ref false in
         let result = ref [] in
@@ -905,8 +926,10 @@ let end_assembly () =
   let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in  
   let (w, f) = Exception_handling.add_exception_handling w f in
   Branch_check.check w;
+
   (* let w = !wasm_module in
   let f = !functions in *)
+
   let w = Linking.create_symbol_table w f in  
   Encode.encode w;
   wasm_module := {

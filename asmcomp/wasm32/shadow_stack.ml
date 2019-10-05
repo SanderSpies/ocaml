@@ -118,16 +118,15 @@ let add_shadow_stack w fns = (
           | FuncSymbol s :: remaining ->
             ( print_endline "- func symbol";
             fix_body (result @ [FuncSymbol s]) remaining is_cextcall) *)
-        | Call (function_name, args) :: remaining ->            
+        | Call (function_name, args) :: remaining ->   
+            print_endline ("Calling function:" ^ function_name);
             let modified_args = List.mapi (fun i a -> (
                 let arg_pos = (i + 1) * pointer_size in    
                 let local_name = "shadow_stack_" ^ function_name ^ "_" ^ (string_of_int i ^ unique()) in
                 add_local (local_name, arg_type function_name i);
                 
                 if is_external_call function_name then (                                    
-                  print_endline ("fixing callext to:" ^ function_name);
                   let result = fix_body [] a true, [] in
-                  print_endline ("- ok -");
                   result
                 ) else
                   (                              
@@ -137,7 +136,10 @@ let add_shadow_stack w fns = (
                       Const (I32 (I32.of_int_u arg_pos)); 
                       Binary (I32 I32Op.Sub);
                       GetLocal local_name;
-                      Store ("local_var_" ^ (string_of_int arg_pos), {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None})
+                      (
+                        print_endline ("arg at " ^ (string_of_int arg_pos) ^ " got " ^ local_name);
+                        Store ("local_var_" ^ (string_of_int arg_pos), {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None})
+                      )
                      ]
                     )
                   )
@@ -152,6 +154,7 @@ let add_shadow_stack w fns = (
           let i = get_local_position x in
           let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
           let (_, ty) = (List.nth f.locals i) in
+          print_endline ("Trying to get:" ^ x ^ " with offset " ^ Int32.to_string offset);
           fix_body          
           (result 
           @          
@@ -170,8 +173,10 @@ let add_shadow_stack w fns = (
           remaining
           is_cextcall
         | SetLocal (x, arg)  :: remaining ->           
+          
           let pos = get_local_position x in  
           let offset = I32.of_int_u (stackframe_size - ((pos + 1) * pointer_size)) in        
+          print_endline ("Set local: " ^ x ^ " with offset:" ^ Int32.to_string offset);
           fix_body           
           (result 
           @               
@@ -223,6 +228,7 @@ let add_shadow_stack w fns = (
         | Drop -> before @ pop_stackframe @ [Drop]
         | _ -> l @ pop_stackframe
       in
+      print_endline ("Shadow stack: fix function: " ^ f.name);
         {f with           
           locals = !locals;
           no_of_args = 0;
