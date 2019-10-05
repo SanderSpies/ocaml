@@ -125,7 +125,7 @@ let create_symbol_table m fti = (
           }])
         );
         handle_expr remaining
-      | Block (_, instr) :: remaining
+      | Block (_, _, instr) :: remaining
       | Loop (_, instr) :: remaining ->
         handle_expr instr;
         handle_expr remaining;

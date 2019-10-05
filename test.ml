@@ -1,5 +1,23 @@
- 
+(*      
+ let rec fibonacci2 n =
+    if n < 3 then
+      1
+    else
+      fibonacci2 (n-1) + fibonacci2 (n-2)
+;;
+let ix = ref 0
+;;
+
+let test a b = 
+  a + b
+;;
+
+let testo a =
+  test 5 a 
+;;
+
 for i = 0 to 3000 do (
+  ix := !ix + 1;
   print_endline ("Iteration:" ^ string_of_int i);
   (for i = 0 to 100 do 
     let x b = () in
@@ -17,7 +35,14 @@ for i = 0 to 3000 do (
     print_endline (string_of_int (fibonacci n))
   done;
   print_endline "Fibonacci end";
+  print_endline "Fibonacci begin 2";
+  for n = 1 to 5 do
+    print_endline (string_of_int (fibonacci2 n))
+  done;
+  print_endline "Fibonacci end 2";
   
+
+
   let something to_ check for_ me = 
     to_ + check + for_ + me
   in
@@ -59,6 +84,8 @@ for i = 0 to 3000 do (
 
 )
 done;;
+
+print_endline ("Ix: " ^ string_of_int !ix);;
 
 let x (a, b) = a + b;;
 let three = x (1, 2);;
@@ -102,10 +129,11 @@ assert ((PairsSet.mem (2,3) m) && (PairsSet.mem (5,7) m) && (PairsSet.mem (3,4) 
 let z = 5.5 +. 7.1 +. 9.3;;
 print_endline ((string_of_float z) ^ " should be 21.9");;
 assert(z = 21.9);; 
+ 
 
- type error =
+
+  type error =
     Test
-
 exception Error of error;;
 
 
@@ -117,21 +145,25 @@ let z a =
   )
 ;;
 
-let () = (
+assert (
   (try (
     (print_endline "a0";
-    ignore(z 2))
+    ignore(z 2);
+    false)
   )
   with
-  | _ -> print_endline "kaas")
+  | _ -> print_endline "kaas"; true)
 );;
 
-let () = (
+print_endline "z1" ;;
+ 
+assert (
   (try (
     print_endline "a1";
+    true
   )
   with
-  | _ -> print_endline "kaas")
+  | _ -> print_endline "should not come here!"; false)
 );;
 
 type error2 =
@@ -143,38 +175,39 @@ type error2 =
 
 let z y = 
   match y with 
-  | Test1 -> print_endline "Test 1x"
-  | Test2 -> print_endline "Test 2"
-  | Test3 -> print_endline "Test 3"
-  | _ -> print_endline "Test 4"
+  | Test1 -> "Test 1x"
+  | Test2 -> "Test 2"
+  | Test3 -> "Test 3"
+  | _ -> "Test 4"
 ;;
 
-z (Test1);;
-z (Test2);;
-z (Test3);; 
-z (Test4);; 
-
+    
 exception Error2 of error2;; 
 
-print_endline "Named exceptions:";;
-
 let z2 _a = 
-  raise (Error2 Test2)
-  
+  raise (Error2 Test2)  
 ;;
 
-let () = (
+print_endline "foobar123";;
+
+
+assert (
   (try (
-    print_endline "a2";
-    z2 2
+    z2 2;
+    "wrong"
   )
   with
-  | Error2 Test1 -> print_endline "fromage"
-  | Error2 Test2 -> print_endline "kaas"
-  | Error2 Test3 -> print_endline "cheese"
-  | _ -> print_endline "cow"
-  )
+  | Error2 Test1 -> "fromage"
+  | Error2 Test2 -> "kaas"
+  | Error2 Test3 -> "cheese"
+  | _ -> "cow"
+  ) = "kaas"
 );;
+
+print_endline "foobar123333";;
+
+print_endline "foobar123333";;
+
 
 module Dog =
   struct
@@ -182,34 +215,125 @@ module Dog =
       (z2 o) + 2
   end;;
 
-let () = (
+assert (
   (try (
     print_endline "a3";
-    ignore(Dog.nested_exception 3)
+    ignore(Dog.nested_exception 3);
+    "wrong"
   )
   with
-  | Error2 Test1 -> print_endline "fromage"
-  | Error2 Test2 -> print_endline "kaas"
-  | Error2 Test3 -> print_endline "cheese"
-  | _ -> print_endline "cow"
+  | Error2 Test1 -> "fromage"
+  | Error2 Test2 -> "kaas"
+  | Error2 Test3 -> "cheese"
+  | _ -> "cow"
   )
-);;
+= "kaas");;
 (* failwith "yolo";; *)
+ 
+print_endline "Oh no I'm trapped";; 
 
-print_endline "Oh no I'm trapped";;
+ (* Random.init 999;; *)
 
-(* Random.init 999;; *)
+print_endline "frak";;
 
-(* let _ = Hashtbl.create 12;; *)
+if not(String.contains "aa" 'a') then
+  print_endline "okay"
+else 
+  print_endline "expected"
+;;
 
-(* print_endline "oh hi there";; *)
-(* Hashtbl.replace table "three" 3;; *)
-(* match (Hashtbl.find_opt table "three") with 
+if String.contains "aa" 'a' then
+  print_endline "expected 2"
+else 
+  print_endline "wut"
+;; 
+
+if String.contains "b" 'a' then
+  print_endline "wrong"
+else 
+  print_endline "expected 3"
+;;
+
+ if String.contains "" 'a' then
+  print_endline "wrong 2"
+else 
+  print_endline "expected 4"
+;;
+
+print_endline "wah wah wah";;
+
+(*)
+print_endline "oh hi there";;
+Hashtbl.replace table "three" 3;;
+match (Hashtbl.find_opt table "three") with 
 | Some s -> print_endline (string_of_int s)
 | _ -> print_endline "NOT FOUND"
-;; *)
+;;
 
 
 (* print_endline ("Testing " ^ (string_of_int (Random.int 12)));; *)
 
 
+
+
+(* let  arr = Sys.argv;;
+Array.iter (fun x -> print_endline x) arr; *)   *)
+  
+ let rec assoc3 x l =
+  match l with
+  | [] -> (
+    raise Not_found
+  )
+  | (y1, y2, _) :: _ when y1 = x -> (
+    print_endline "okay!";
+    y2
+  )
+  | _ :: t -> assoc3 x t
+;;
+
+
+
+assert (assoc3 "-a" [("-a", "hello", "x")] = "hello");;
+ *)
+
+ (* type example = 
+  | Foo of (string -> unit)
+  | Shoo of string
+  | Boo of (int -> unit)
+  | Oh of int 
+  | Ar of bool
+
+let a = ref ""
+
+let rec z = function
+  | Foo s -> s "yolo"
+  | Shoo s -> print_endline s
+  | Boo p -> p 12
+  | Oh i -> print_int i
+  | Ar x -> if x then print_endline "true" else print_endline "false"
+;;
+
+a := "ppp";;
+
+z (Boo (fun s -> print_endline ("dog" ^ string_of_int s))) *)
+
+  
+let source_name = ref None
+let output_name = ref None
+let usage = "usage: ocamllex [options] sourcefile"
+
+let specs =
+  ["-o", Arg.String (fun x -> print_endline "right"; output_name := Some x),
+    " <file>  Set output file name to <file>"];;
+
+print_endline "a1";;
+let _ =
+  Arg.parse
+    specs
+    (fun name -> 
+      print_endline "01";
+      source_name := Some name)
+    usage    
+;;
+
+print_endline "done."

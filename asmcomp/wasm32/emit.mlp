@@ -42,7 +42,7 @@ type block_stack_item =
 | BLoop
 | BIfthenelse
 | BCswitch_main
-| BCswitch_case
+| BCswitch_case of string
 | BWith of int
 | BCcatch 
 | BCheckbound1
@@ -52,6 +52,7 @@ type block_stack = block_stack_item Stack.t
 
 let block_stack : block_stack = Stack.create ()
 
+let unique_counter = ref 0
 
 let name s =
   try Utf8.decode s with Utf8.Utf8 ->
@@ -407,6 +408,11 @@ let begin_assembly () = (
         value = [Const (I32 (-1l))]
       }; *)
       {
+        name = "__stack_pointer";
+        gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
+        value = [Const (I32 4l)]
+      };
+      {
         name = "max_young_wosize";
         gtype = Types.GlobalType (Types.I32Type, Types.Immutable);
         value = [Const (I32 256l)]
@@ -500,7 +506,6 @@ let begin_assembly () = (
 )
 
 let fundecl ({fun_name; fun_args; fun_body; _}) =
-  (* print_endline ("Fun: " ^ fun_name); *)
   Stack.clear block_stack;
   let (typed_cmm, rt, locals, fns) = Typed_cmm.add_types fun_name fun_args fun_body in
   let args = List.fold_left (fun a b -> a @ (Typed_cmm.mach_to_wasm (snd b))) [] fun_args in
@@ -540,7 +545,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           | _ -> assert false
           in
           total_size := !total_size + add;
-          let result = before @ middle @ [Store {ty = List.hd rt; align = 0; offset = 0l; sz = None}]     
+          let result = before @ middle @ [Store ("allocated_at_" ^ (string_of_int !position), {ty = List.hd rt; align = 0; offset = 0l; sz = None})]     
           in
           
           position := !position + add;
@@ -585,14 +590,11 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       Stack.push BCheckbound1 block_stack;
       let i = fst @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] in
       let t = [
-        
-        Call ("jsRaise_i32_i32", [[DataSymbol "caml_exn_Invalid_argument"]]);
-        Drop
+        Throw [Const (I32 1l)]        
       ] in
       Stack.push BCheckbound2 block_stack;
       let e = snd @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] @ [If ([], [
-            Call ("jsRaise_i32_i32", [[DataSymbol "caml_exn_Invalid_argument"]]);
-            Drop
+            Throw [Const (I32 1l)]
           ], [])]
       in
       ignore(Stack.pop block_stack);
@@ -605,28 +607,28 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       [Throw (List.fold_left (fun all (a, _) -> all @ emit_expr a) [] expr)]
     | _ -> 
       el @ (match operation with 
-      | Cload(Byte_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, ZX)}]
-      | Cload(Byte_signed, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, SX)}]
-      | Cload(Sixteen_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem16, ZX)}]
-      | Cload(Sixteen_signed, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem16, SX)}]
-      | Cload(Thirtytwo_unsigned, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Thirtytwo_signed, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Word_int, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Word_val, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Single, _) -> [Load {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Double, _) -> [Load {ty = F64Type; align = 0; offset = 0l; sz = None}]
-      | Cload(Double_u, _) -> [Load {ty = F64Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Byte_unsigned, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8}]
-      | Cstore (Byte_signed, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8}]
-      | Cstore (Sixteen_unsigned, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem16}]
-      | Cstore (Sixteen_signed, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = Some Mem16}]
-      | Cstore (Thirtytwo_unsigned, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Thirtytwo_signed, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Word_int, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Word_val, _) -> [Store {ty = I32Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Single, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Double, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
-      | Cstore (Double_u, _) -> [Store {ty = F64Type; align = 0; offset = 0l; sz = None}]
+      | Cload(Byte_unsigned, _) -> [Load ("Byte_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, ZX)})]
+      | Cload(Byte_signed, _) -> [Load ("Byte_signed", {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem8, SX)})]
+      | Cload(Sixteen_unsigned, _) -> [Load ("Sixteen_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem16, ZX)})]
+      | Cload(Sixteen_signed, _) -> [Load ("Sixteen_signed", {ty = I32Type; align = 0; offset = 0l; sz = Some (Mem16, SX)})]
+      | Cload(Thirtytwo_unsigned, _) -> [Load ("Thirtytwo_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Thirtytwo_signed, _) -> [Load ("Thirtytwo_signed", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Word_int, _) -> [Load ("Word_int", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Word_val, _) -> [Load ("Word_val", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Single, _) -> [Load ("Single", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Double, _) -> [Load ("Double", {ty = F64Type; align = 0; offset = 0l; sz = None})]
+      | Cload(Double_u, _) -> [Load ("Double_u", {ty = F64Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Byte_unsigned, _) -> [Store ("Byte_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8})]
+      | Cstore (Byte_signed, _) -> [Store ("Byte_signed", {ty = I32Type; align = 0; offset = 0l; sz = Some Mem8})]
+      | Cstore (Sixteen_unsigned, _) -> [Store ("Sixteen_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = Some Mem16})]
+      | Cstore (Sixteen_signed, _) -> [Store ("Sixteen_signed", {ty = I32Type; align = 0; offset = 0l; sz = Some Mem16})]
+      | Cstore (Thirtytwo_unsigned, _) -> [Store ("Thirtytwo_unsigned", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Thirtytwo_signed, _) -> [Store ("Thirtytwo_signed", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Word_int, _) -> [Store ("Word_int", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Word_val, _) -> [Store ("Word_val", {ty = I32Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Single, _) -> [Store ("Single", {ty = F64Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Double, _) -> [Store ("Double", {ty = F64Type; align = 0; offset = 0l; sz = None})]
+      | Cstore (Double_u, _) -> [Store ("Double_u", {ty = F64Type; align = 0; offset = 0l; sz = None})]
       | Caddv 
       | Caddi
       | Cadda -> [Binary (I32 I32Op.Add)]
@@ -775,25 +777,48 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       let ea = Array.to_list ea in
       let ia = Array.to_list ia in
       let depth = ref 0 in
+      let unique = !unique_counter in
+      unique_counter := !unique_counter + 1;
       let rec create_block ints remaining =
         match ints, remaining with
         | i :: re, expr :: rest -> (
-          
-          Stack.push BCswitch_case block_stack;
+          (if i = 0 then  
+            Stack.push (BCswitch_case ("main_switch_" ^ (string_of_int unique))) block_stack          
+          else
+            Stack.push (BCswitch_case ("block_" ^ (string_of_int unique))) block_stack
+          );          
           let body = emit_expr expr in            
           depth := !depth + 1;            
           let child_block = create_block re rest in            
-          let e = (child_block @ body) in 
-          
-          let expr = (e @ (match expr with | Texit _ -> [] | _ when (!depth - 1) <> List.length remaining ->  [Br (Int32.of_int i)] | _ -> [] ))  in
+          let e = child_block @ body in       
+          let z = ref 0 in
+          let result = ref 0 in
+          Stack.iter (fun b ->
+            (match b with 
+            | BCswitch_case s when s = ("main_switch_" ^ (string_of_int unique)) -> 
+              result := !z;
+            | _ -> ());
+            z := !z + 1;
+          ) block_stack;
+          let expr = (e @ 
+            (match expr with 
+              | Texit _ -> [] 
+              | _ when (!depth - 1) <> List.length remaining ->  
+                  [Br ("main_switch_" ^ (string_of_int unique), Int32.of_int !result)] 
+              | _ -> [] ))  
+          in
           let block_type = (if List.length remaining <> List.length ea then         
             []
           else
             t
           )
           in
-          ignore(Stack.pop block_stack);        
-          [Block (block_type, expr)] 
+          ignore(Stack.pop block_stack);      
+          if i = 0 then  
+            [Block ("main_switch_" ^ (string_of_int unique), block_type, expr)] 
+          else
+            [Block ("block_" ^ (string_of_int i), block_type, expr)] 
+
         )
         | _, [] -> (
           Stack.push BCswitch_main block_stack;
@@ -802,18 +827,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           let e = emit_expr sw in
           depth := !depth + 1;
           let expr = e @ [tb] in
-          let table_body = [Block ([], expr)] in
+          let table_body = [Block ("table", [], expr)] in
           ignore(Stack.pop block_stack);
           ignore(Stack.pop block_stack);
           let content = table_body @ [Unreachable] in
-          [Block ([], content)])
+          [Block ("switch_main", [], content)])
         | _ -> failwith "Should not happen..."
       in 
       create_block ia ea    
       );
     | Tloop e ->
       Stack.push BLoop block_stack;    
-      let result = [Loop ([], (emit_expr e) @ [Br 0l])] in
+      let result = [Loop ([], (emit_expr e) @ [Br ("loop", 0l)])] in
       ignore(Stack.pop block_stack);
       result
 
@@ -821,15 +846,18 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       Stack.push (BWith i) block_stack;
       let with_ = emit_expr expr in            
       Stack.push BCcatch block_stack;
-      let child_block = [Block ([], (emit_expr body) @ [Br 1l])] in
+      let name = "exit_" ^ (string_of_int i) in
+      let child_block = [Block ("try_" ^ (string_of_int i), [], (emit_expr body) @ [Br (name, 1l)])] in
       ignore(Stack.pop block_stack);
       let expr = (child_block @ with_) in       
       ignore(Stack.pop block_stack);
-      [Block (rt, expr)]         
+      [Block (name, rt, expr)]         
     )
     | Tcatch _ -> assert false
     | Texit (i, el, _ind) ->
       (
+        (* problem: in some cases exit doesn't go to the right location, 
+                    could be because try with isn't handled properly? *)
         let el = List.fold_left (fun all e ->
           all @ (emit_expr e)
         ) [] el in
@@ -838,9 +866,9 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         let result = ref [] in
         Stack.iter (fun str ->
           (match str with 
-          | BWith w when w = i -> ( 
-            found := true;
-            result := [Br (Int32.of_int (!position - 1))]);          
+          | BWith w when w = i -> (           
+            found := true;            
+            result := [Br ("try_" ^ (string_of_int i), Int32.of_int (!position - 1))]);
           | _ -> ());
           position := !position + 1
         ) block_stack;
@@ -874,11 +902,12 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in
+  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in  
   let (w, f) = Exception_handling.add_exception_handling w f in
+  Branch_check.check w;
   (* let w = !wasm_module in
   let f = !functions in *)
-  let w = Linking.create_symbol_table w f in
+  let w = Linking.create_symbol_table w f in  
   Encode.encode w;
   wasm_module := {
     types = [];

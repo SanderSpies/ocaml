@@ -79,10 +79,10 @@ type symbol = string
 type instr =
   | Unreachable                       (* trap unconditionally *)
   | Nop                               (* do nothing *)
-  | Block of stack_type * instr list  (* execute in sequence *)
+  | Block of string * stack_type * instr list  (* execute in sequence *)
   | Loop of stack_type * instr list   (* loop header *)
   | If of stack_type * instr list * instr list  (* conditional *)
-  | Br of var                         (* break to n-th surrounding label *)
+  | Br of string * var                (* break to n-th surrounding label *)
   | BrIf of var                       (* conditional break *)
   | BrTable of var list * var         (* indexed break *)
   | Return                            (* break from function body *)
@@ -95,8 +95,8 @@ type instr =
   | TeeLocal of symbol                   (* write local variable and keep value *)
   | GetGlobal of symbol               (* read global variable *)
   | SetGlobal of symbol               (* write global variable *)
-  | Load of loadop                    (* read memory at address *)
-  | Store of storeop                  (* write memory at address *)
+  | Load of string * loadop           (* read memory at address *)
+  | Store of string * storeop         (* write memory at address *)
   | CurrentMemory                     (* size of linear memory *)
   | GrowMemory                        (* grow linear memory *)
   | Const of literal                  (* constant *)
@@ -136,7 +136,6 @@ type func =
   body : instr list;
   no_of_args: int;
 }
-
 
 (* Tables & Memories *)
 

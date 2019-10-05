@@ -56,6 +56,7 @@ type block =
   | Bcheckbound1
   | Bcheckbound2
   | Bfunction
+  | Btrycatch
 
 type block_stack = block Stack.t
 
@@ -317,7 +318,7 @@ let rec process env e =
             let item = Stack.pop stack in 
             switch_result := item;
             ignore(Stack.pop block_stack);
-        ) ea;         
+        ) ea;
         push !switch_result;
         check_stack_plus_one ();
         Tswitch (match_, ia, cases, d, mach_to_wasm (Stack.top stack))
@@ -378,7 +379,9 @@ let rec process env e =
         let rt = Stack.top stack in
         pop ();
         add_local (ident exn, rt);
+        Stack.push Btrycatch block_stack;
         let handler = process env handler in
+        ignore(Stack.pop block_stack);
         pop ();
         let result = Ttrywith (mach_to_wasm rt, body, exn, handler) in
         push rt;

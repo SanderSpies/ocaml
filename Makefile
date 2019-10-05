@@ -175,7 +175,7 @@ WASMCOMP=\
   asmcomp/numeric_error.cmo asmcomp/int.cmo asmcomp/i32.cmo asmcomp/i64.cmo \
   asmcomp/lib.cmo asmcomp/wasm_types.cmo asmcomp/float.cmo asmcomp/f32.cmo asmcomp/f64.cmo \
   asmcomp/values.cmo asmcomp/ast.cmo asmcomp/utf8.cmo asmcomp/typed_cmm.cmo asmcomp/linking.cmo \
-  asmcomp/shadow_stack.cmo asmcomp/exception_handling.cmo \
+  asmcomp/shadow_stack.cmo asmcomp/exception_handling.cmo asmcomp/branch_check.cmo\
   asmcomp/emitaux.cmo asmcomp/encode.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
   driver/opterrors.cmo driver/optcompile.cmo
@@ -1003,6 +1003,9 @@ asmcomp/values.ml: asmcomp/wasm32/values.ml
 asmcomp/ast.ml: asmcomp/wasm32/ast.ml
 	cd asmcomp; $(LN) wasm32/ast.ml .
 
+asmcomp/branch_check.ml: asmcomp/wasm32/branch_check.ml
+	cd asmcomp; $(LN) wasm32/branch_check.ml .
+
 asmcomp/utf8.ml: asmcomp/wasm32/utf8.ml
 	cd asmcomp; $(LN) wasm32/utf8.ml .
 
@@ -1027,6 +1030,7 @@ asmcomp/exception_handling.ml: asmcomp/wasm32/exception_handling.ml
 
 partialclean::
 	rm -f asmcomp/ast.ml
+	rm -f asmcomp/branch_check.ml
 	rm -f asmcomp/values.ml
 	rm -f asmcomp/f32.ml
 	rm -f asmcomp/f64.ml
@@ -1531,3 +1535,6 @@ include .depend
 
 wasi-test:
 	RUST_BACKTRACE=1 lldb /wasmtime/target/release/wasmtime -- -g test --env=OCAMLRUNPARAM=-b
+
+ocamllex-test: wasi-fast
+	cd lex && rm -rf ocamllex.opt && make ocamllex.opt &> hubba && /wasmtime/target/release/wasmtime ocamllex.opt -- lexer.mll -o wtf

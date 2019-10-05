@@ -280,13 +280,13 @@ let encode m =
       match e with
       | Unreachable -> op 0x00
       | Nop -> op 0x01
-      | Block (ts, es) -> op 0x02; stack_type ts; list (instr locals) es; end_ ()
+      | Block (id, ts, es) -> op 0x02; stack_type ts; list (instr locals) es; end_ ()
       | Loop (ts, es) -> op 0x03; stack_type ts; list (instr locals) es; end_ ()
       | If (ts, es1, es2) ->
         op 0x04; stack_type ts; list (instr locals) es1;
         if es2 <> [] then op 0x05;
         list (instr locals) es2; end_ ()
-      | Br x -> op 0x0c; var x
+      | Br (_id, x) -> op 0x0c; var x
       | BrIf x -> op 0x0d; var x
       | BrTable (xs, x) -> op 0x0e; vec var xs; var x
       | Return -> op 0x0f
@@ -323,45 +323,45 @@ let encode m =
         let p = pos s in
         code_relocations := !code_relocations @ [R_WASM_GLOBAL_INDEX_LEB (Int32.of_int p, x)];
         reloc_index (find_global_index2 x)
-      | Load ({ty = I32Type; sz = None; _} as mo) -> op 0x28; memop mo
-      | Load ({ty = I64Type; sz = None; _} as mo) -> op 0x29; memop mo
-      | Load ({ty = F32Type; sz = None; _} as mo) -> op 0x2a; memop mo
-      | Load ({ty = F64Type; sz = None; _} as mo) -> op 0x2b; memop mo
-      | Load ({ty = I32Type; sz = Some (Mem8, SX); _} as mo) ->
+      | Load (_, ({ty = I32Type; sz = None; _} as mo)) -> op 0x28; memop mo
+      | Load (_, ({ty = I64Type; sz = None; _} as mo)) -> op 0x29; memop mo
+      | Load (_, ({ty = F32Type; sz = None; _} as mo)) -> op 0x2a; memop mo
+      | Load (_, ({ty = F64Type; sz = None; _} as mo)) -> op 0x2b; memop mo
+      | Load (_, ({ty = I32Type; sz = Some (Mem8, SX); _} as mo)) ->
         op 0x2c; memop mo
-      | Load ({ty = I32Type; sz = Some (Mem8, ZX); _} as mo) ->
+      | Load (_, ({ty = I32Type; sz = Some (Mem8, ZX); _} as mo)) ->
         op 0x2d; memop mo
-      | Load ({ty = I32Type; sz = Some (Mem16, SX); _} as mo) ->
+      | Load (_, ({ty = I32Type; sz = Some (Mem16, SX); _} as mo)) ->
         op 0x2e; memop mo
-      | Load ({ty = I32Type; sz = Some (Mem16, ZX); _} as mo) ->
+      | Load (_, ({ty = I32Type; sz = Some (Mem16, ZX); _} as mo)) ->
         op 0x2f; memop mo
-      | Load {ty = I32Type; sz = Some (Mem32, _); _} ->
+      | Load (_, ({ty = I32Type; sz = Some (Mem32, _); _})) ->
         assert false
-      | Load ({ty = I64Type; sz = Some (Mem8, SX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem8, SX); _} as mo)) ->
         op 0x30; memop mo
-      | Load ({ty = I64Type; sz = Some (Mem8, ZX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem8, ZX); _} as mo)) ->
         op 0x31; memop mo
-      | Load ({ty = I64Type; sz = Some (Mem16, SX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem16, SX); _} as mo)) ->
         op 0x32; memop mo
-      | Load ({ty = I64Type; sz = Some (Mem16, ZX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem16, ZX); _} as mo)) ->
         op 0x33; memop mo
-      | Load ({ty = I64Type; sz = Some (Mem32, SX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem32, SX); _} as mo)) ->
         op 0x34; memop mo
-      | Load ({ty = I64Type; sz = Some (Mem32, ZX); _} as mo) ->
+      | Load (_, ({ty = I64Type; sz = Some (Mem32, ZX); _} as mo)) ->
         op 0x35; memop mo
-      | Load {ty = F32Type | F64Type; sz = Some _; _} ->
+      | Load (_, ({ty = F32Type | F64Type; sz = Some _; _})) ->
         assert false
-      | Store ({ty = I32Type; sz = None; _} as mo) -> op 0x36; memop mo
-      | Store ({ty = I64Type; sz = None; _} as mo) -> op 0x37; memop mo
-      | Store ({ty = F32Type; sz = None; _} as mo) -> op 0x38; memop mo
-      | Store ({ty = F64Type; sz = None; _} as mo) -> op 0x39; memop mo
-      | Store ({ty = I32Type; sz = Some Mem8; _} as mo) -> op 0x3a; memop mo
-      | Store ({ty = I32Type; sz = Some Mem16; _} as mo) -> op 0x3b; memop mo
-      | Store {ty = I32Type; sz = Some Mem32; _} -> assert false
-      | Store ({ty = I64Type; sz = Some Mem8; _} as mo) -> op 0x3c; memop mo
-      | Store ({ty = I64Type; sz = Some Mem16; _} as mo) -> op 0x3d; memop mo
-      | Store ({ty = I64Type; sz = Some Mem32; _} as mo) -> op 0x3e; memop mo
-      | Store {ty = F32Type | F64Type; sz = Some _; _} -> assert false
+      | Store (_, ({ty = I32Type; sz = None; _} as mo)) -> op 0x36; memop mo
+      | Store (_, ({ty = I64Type; sz = None; _} as mo)) -> op 0x37; memop mo
+      | Store (_, ({ty = F32Type; sz = None; _} as mo)) -> op 0x38; memop mo
+      | Store (_, ({ty = F64Type; sz = None; _} as mo)) -> op 0x39; memop mo
+      | Store (_, ({ty = I32Type; sz = Some Mem8; _} as mo)) -> op 0x3a; memop mo
+      | Store (_, ({ty = I32Type; sz = Some Mem16; _} as mo)) -> op 0x3b; memop mo
+      | Store (_, ({ty = I32Type; sz = Some Mem32; _})) -> assert false
+      | Store (_, ({ty = I64Type; sz = Some Mem8; _} as mo)) -> op 0x3c; memop mo
+      | Store (_, ({ty = I64Type; sz = Some Mem16; _} as mo)) -> op 0x3d; memop mo
+      | Store (_, ({ty = I64Type; sz = Some Mem32; _} as mo)) -> op 0x3e; memop mo
+      | Store (_, ({ty = F32Type | F64Type; sz = Some _; _})) -> assert false
       | CurrentMemory -> op 0x3f; u8 0x00
       | GrowMemory -> op 0x40; u8 0x00
       | FuncSymbol symbol ->
@@ -552,8 +552,11 @@ let encode m =
       | Convert (F64 F64Op.DemoteF64) -> assert false
       | Convert (F64 F64Op.ReinterpretInt) -> op 0xbf
 
-      | Throw t -> failwith "Exception handling spec not implemented yet"
-      | TryCatch _ -> failwith "Exception handling spec not implemented yet"
+      (* | Throw t -> failwith "Exception handling spec not implemented yet"
+      | TryCatch _ -> failwith "Exception handling spec not implemented yet" *)
+
+      | Throw t -> ()
+      | TryCatch (_, _body, _, _) -> op 0x41; vs32 1l
 
     let const c =
       list (instr []) c; end_ ()

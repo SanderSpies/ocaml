@@ -87,57 +87,68 @@ let add_shadow_stack w fns = (
           [ SetLocal ("__local_sp", [GetGlobal "__stack_pointer"]) ]
         )
       in      
-      let rec fix_body result (il:Ast.instr list) =
+      let rec fix_body result (il:Ast.instr list) is_cextcall =
         match (il: Ast.instr list) with 
         | Loop (t, e) :: remaining -> 
-          fix_body  (result @ [Loop (t, fix_body  [] e)]) remaining
-        | Block (t, e) :: remaining -> 
-          fix_body   (result @ [Block (t, fix_body  [] e)]) remaining        
+          fix_body  (result @ [Loop (t, fix_body  [] e is_cextcall)]) remaining is_cextcall
+        | Block (id, t, e) :: remaining -> 
+          fix_body   (result @ [Block (id, t, fix_body  [] e is_cextcall)]) remaining is_cextcall     
         | If (t, e1, e2) :: remaining -> 
-          fix_body   (result @ [If (t, fix_body  [] e1, fix_body  [] e2)]) remaining              
+          fix_body   (result @ [If (t, fix_body [] e1 is_cextcall, fix_body  [] e2 is_cextcall)]) remaining is_cextcall
         | CallIndirect (t, args) :: remaining -> 
           let rev_args = List.rev args in         
           let modified_args = List.mapi (fun i a -> 
               let arg_pos = (i + 1) * pointer_size in              
               let local_name = "shadow_stack_ft_" ^ t ^ "_" ^ (string_of_int i) ^ (unique()) in
               add_local (local_name, arg_type t i);
-              ([SetLocal (local_name, (fix_body [] a))],
+              ([SetLocal (local_name, (fix_body [] a is_cextcall))],
                [
                  GetGlobal "__stack_pointer";
                   Const (I32 (I32.of_int_u arg_pos)); 
                   Binary (I32 I32Op.Sub);
                   GetLocal local_name;
-                 Store {ty = arg_type t i ; align = 0; offset = 0l; sz = None}]              
+                 Store ("local_var_" ^ (string_of_int arg_pos), {ty = arg_type t i ; align = 0; offset = 0l; sz = None})]              
               ) 
             ) (List.tl rev_args)
           in
-          fix_body  (result @ [CallIndirect ("re_i32", (List.map fst modified_args) @ (List.map snd modified_args) @ ([fix_body  [] (List.hd rev_args)]))]) remaining
+          fix_body  (result @ [CallIndirect ("re_i32", (List.map fst modified_args) @ (List.map snd modified_args) @ ([fix_body  [] (List.hd rev_args) is_cextcall]))]) remaining is_cextcall
+         (* | DataSymbol s :: remaining ->
+            ( print_endline "- data symbol";
+            fix_body (result @ [DataSymbol s]) remaining is_cextcall)
+          | FuncSymbol s :: remaining ->
+            ( print_endline "- func symbol";
+            fix_body (result @ [FuncSymbol s]) remaining is_cextcall) *)
         | Call (function_name, args) :: remaining ->            
             let modified_args = List.mapi (fun i a -> (
                 let arg_pos = (i + 1) * pointer_size in    
                 let local_name = "shadow_stack_" ^ function_name ^ "_" ^ (string_of_int i ^ unique()) in
                 add_local (local_name, arg_type function_name i);
-                if is_external_call function_name then 
-                  (fix_body [] a, [])
-                else
+                
+                if is_external_call function_name then (                                    
+                  print_endline ("fixing callext to:" ^ function_name);
+                  let result = fix_body [] a true, [] in
+                  print_endline ("- ok -");
+                  result
+                ) else
                   (                              
-                    ([SetLocal (local_name, (fix_body [] a))],
+                    ([SetLocal (local_name, (fix_body [] a is_cextcall))],
                      [
                       GetGlobal "__stack_pointer";
                       Const (I32 (I32.of_int_u arg_pos)); 
                       Binary (I32 I32Op.Sub);
                       GetLocal local_name;
-                      Store {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None}
+                      Store ("local_var_" ^ (string_of_int arg_pos), {ty = arg_type function_name i ; align = 0; offset = 0l; sz = None})
                      ]
                     )
                   )
               )              
             ) args 
             in
-            fix_body  (result @ [Call (function_name, (List.map fst modified_args) @ (List.map snd modified_args))]) remaining        
+            fix_body  (result @ [Call (function_name, (List.map fst modified_args) @ (List.map snd modified_args))]) remaining is_cextcall     
         | TryCatch (s, then_, x, catch_) :: remaining ->
-          fix_body (result @ [TryCatch (s, fix_body [] then_, x, fix_body [] catch_)]) remaining
+          fix_body (result @ [TryCatch (s, fix_body [] then_ is_cextcall, x, fix_body [] catch_ is_cextcall)]) remaining is_cextcall
         | GetLocal x :: remaining -> 
+          print_endline ("get local:" ^ x);
           let i = get_local_position x in
           let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
           let (_, ty) = (List.nth f.locals i) in
@@ -146,10 +157,18 @@ let add_shadow_stack w fns = (
           @          
             [ 
               GetLocal "__local_sp";
-              Load {ty; align = 0; offset; sz = None}
-            ]   
+              Load ("local_var_" ^ (Int32.to_string offset), {ty; align = 0; offset; sz = None});              
+              ]
+          @  
+          (if is_cextcall then (
+            [
+              (* Load {ty; align = 0; offset = 0l; sz = None}; *)
+            ]) else 
+            []
+          )
           )
           remaining
+          is_cextcall
         | SetLocal (x, arg)  :: remaining ->           
           let pos = get_local_position x in  
           let offset = I32.of_int_u (stackframe_size - ((pos + 1) * pointer_size)) in        
@@ -158,12 +177,13 @@ let add_shadow_stack w fns = (
           @               
               [GetLocal "__local_sp"]
               @                 
-              (fix_body [] arg)
+              (fix_body [] arg is_cextcall)
               @
              (let (_, ty) = List.nth f.locals pos in
-            [Store {ty; align = 0; offset; sz = None}])
+            [Store ("local_var_" ^ (Int32.to_string offset), {ty; align = 0; offset; sz = None})])
           )          
-          remaining  
+          remaining 
+          is_cextcall 
         | Return :: remaining -> 
           fix_body  (result @ 
             if stackframe_size > 0 then
@@ -176,9 +196,9 @@ let add_shadow_stack w fns = (
               ]
           else 
               [Return]
-          ) remaining
+          ) remaining is_cextcall
         | other :: remaining -> 
-          fix_body  (result @ [other]) remaining
+          fix_body  (result @ [other]) remaining is_cextcall
         | [] -> result    
       in   
       let pop_stackframe = 
@@ -197,7 +217,7 @@ let add_shadow_stack w fns = (
         let before = List.rev (List.tl reversed) in
         let last = List.hd reversed in
         match last with
-        | Br n -> before @ pop_stackframe @ [Br n]
+        | Br (id, n) -> before @ pop_stackframe @ [Br (id, n)]
         | Return -> before @ pop_stackframe @ [Return]
         | Throw t -> before @ pop_stackframe @ [Throw t]
         | Drop -> before @ pop_stackframe @ [Drop]
@@ -206,7 +226,7 @@ let add_shadow_stack w fns = (
         {f with           
           locals = !locals;
           no_of_args = 0;
-          body = push_stackframe @ (add_pop_stack (fix_body [] f.body))
+          body = push_stackframe @ (add_pop_stack (fix_body [] f.body false))
         }  
     )
   )  
@@ -226,11 +246,6 @@ let add_shadow_stack w fns = (
     | _-> s
   in
   (Ast.{w with 
-    globals = [{
-      name = "__stack_pointer";
-      gtype = Types.GlobalType (Types.I32Type, Types.Mutable);
-      value = [Const (I32 4l)]
-    }] @ w.globals;
     funcs = List.map (fun (f:Ast.func) -> 
       if is_external_call f.name then         
         f 
