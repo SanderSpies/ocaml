@@ -333,6 +333,7 @@ let blockheader_details header =
 let begin_assembly () = (
   global_offset := !global_offset + 8; (* TODO: make this a bit smarter (eg. count the previous sizes) *)
   let w = !wasm_module in
+  let module_name = "caml"  ^ (Compilenv.current_unit_name ()) in
   (* 
    Pointers into the minor heap.
    [caml_young_base]
@@ -354,7 +355,7 @@ let begin_assembly () = (
          [caml_young_ptr] for allocation. It is either
          [caml_young_alloc_end] if a signal is pending and we are in
          native code, or [caml_young_trigger].
-  *)
+  *)  
   wasm_module := Ast.{w with  
     globals = [
       (* {
@@ -429,8 +430,15 @@ let begin_assembly () = (
       {tname = "i32->i32->i32->i32"; tdetails = Types.FuncType ([Types.I32Type; Types.I32Type; Types.I32Type; ], [Types.I32Type])}
     ];
     data =  [
-      
-    ];
+      {
+        index =  0l;
+        offset = [Const (I32 (I32.of_int_s !global_offset))];
+        init = {
+          name = module_name ^ "__data_begin";
+          detail = [Int8 0];
+        }
+      }
+    ];    
     imports = [      
       {
         module_name = name "spectest";
@@ -459,7 +467,15 @@ let begin_assembly () = (
       }
     ];
     symbols = [
-      
+      {
+        name = (module_name ^ "__data_begin");
+        details = Data ({
+          index = 0l;
+          relocation_offset = 0l;
+          size = 1l;
+          offset = 0l
+        })
+      };
       {
         name = "caml_modify";
         details = Import ([I32Type; I32Type], [])
@@ -503,6 +519,7 @@ let begin_assembly () = (
       } *)
     ]
   };
+  global_offset := !global_offset + 1
 )
 
 let fundecl ({fun_name; fun_args; fun_body; _}) =
@@ -872,14 +889,10 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
     | Tcatch _ -> assert false
     | Texit (i, el, _ind) ->
       (
-        (* problem: in some cases exit doesn't go to the right location, 
-                    could be because try with isn't handled properly? *)
-        print_endline ("2 exit to " ^ string_of_int i ^ " has " ^ string_of_int (List.length el) ^ " expressions");
         let pos = ref 0 in
         let el = List.fold_left (fun all e ->
           let local_name = find_ccatch_name i !pos in
           pos := !pos + 1;
-          print_endline ("set local: " ^ local_name);
           all @ [SetLocal (local_name, emit_expr e)]
         ) [] el in        
         let position = ref 0 in
@@ -923,7 +936,36 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   }
 
 let end_assembly () =
-  let (w, f) = Shadow_stack.add_shadow_stack !wasm_module !functions in  
+  let w = !wasm_module in
+  let func_name = (List.hd (List.rev w.funcs)).name in
+  let len = String.length func_name in
+  let name_len = String.length "__data_end" in
+  let module_name = String.sub func_name (len - name_len) name_len in
+  let w = {w with     
+    data = w.data @ [
+      {
+        index = Int32.of_int (List.length w.data);
+        offset = [Const (I32 (I32.of_int_s !global_offset))];
+        init = {
+          name = module_name ^ "__data_end";
+          detail = [Int8 0];
+        }
+      }
+    ];
+    symbols = w.symbols @ [
+      {
+        name = (module_name ^ "__data_end");
+        details = Data ({
+          index = 0l;
+          relocation_offset = 0l;
+          size = 1l;
+          offset = Int32.of_int !global_offset;
+        })
+      };
+    ];
+  }
+  in
+  let (w, f) = Shadow_stack.add_shadow_stack w !functions in  
   let (w, f) = Exception_handling.add_exception_handling w f in
   Branch_check.check w;
 
@@ -951,10 +993,10 @@ let end_assembly () =
     symbols = [];
   }
 
-let data dl =
+let data dl =  
   if List.length dl > 0 && (List.exists (fun x -> 
   match x with 
-  | Csymbol_address _ -> false
+  | Csymbol_address _s -> false
   | _ -> true
   ) dl) then (        
     let init = ref [] in
@@ -972,7 +1014,7 @@ let data dl =
         | _ -> false
     in
     List.iter (function
-    | Cglobal_symbol _ -> () (* print_endline ("Global: " ^ s) *)
+    | Cglobal_symbol _ -> ()
     | Csymbol_address symbol -> (            
         let add =
           if is_closure then               
@@ -985,7 +1027,7 @@ let data dl =
         ()
         )
     | Cdefine_symbol symbol ->       
-      symbol_name := symbol
+      symbol_name := symbol;      
     | Cint8 i -> (
         init := !init @ [Int8 i];
         offset := !offset + 1;
@@ -1008,7 +1050,6 @@ let data dl =
         )
     | Csingle d
     | Cdouble d -> (
-        (* print_endline ("The float is:" ^ string_of_float d); *)
         init := !init @ [Float64 (F64.of_float d)];
         offset := !offset + 4;
         ()
@@ -1048,7 +1089,7 @@ let data dl =
     global_offset := !global_offset + !offset;
 
     (* to make sure that this is always seen as data and not an integer *)
-    (if !global_offset land 1 <> 0 then global_offset := !global_offset + 1);
+    (if !global_offset land 1 <> 0 then global_offset := !global_offset + 1);    
     wasm_module := Ast.{w with data = w.data @ [{
       index =  0l;
       offset = [Const (I32 (I32.of_int_s start_offset))];

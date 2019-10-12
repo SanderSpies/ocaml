@@ -24,9 +24,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
     let calc_stackframe_size locals = 
         (List.length (List.filter (fun (name, _) -> (String.length name < 13 || String.sub name 0 13 <> "shadow_stack_" )) locals))
     in
-    let func (f: Ast.func) = (
-        print_endline ("eh:" ^ f.name);
-        print_endline "===";
+    let func (f: Ast.func) = (        
         recent_exception_name := "INVALID";
         let get_local_position name = (
             let rec find counter = function
@@ -47,13 +45,11 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                 fst a - 1
             )
         in
-        let br_fix id (boundaries:(int * int) list) (br: int32) =
+        let br_fix _id (boundaries:(int * int) list) (br: int32) =
              let increase = ref 0 in
              let result = List.fold_left (
                  fun result (curr, incr) -> 
                     (
-                        print_endline ("boundary at: " ^ (string_of_int curr));
-                        print_endline ("br:" ^ (Int32.to_string br));
                     if (curr - (incr + !increase)) <= (Int32.to_int br) then 
                         (           
                             increase := !increase + incr;
@@ -63,11 +59,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         result
                     )) 
                 br boundaries            
-            in 
-            if !increase = 0 then
-                print_endline ("Br " ^ id ^ " (" ^ (Int32.to_string br) ^ ") got no increase")
-            else 
-                print_endline ("Br " ^ id ^ " (" ^ (Int32.to_string br) ^ ") got an increase of " ^ (string_of_int !increase));
+            in             
             result 
             (* br *)
             (* let absolute_depth = depth - (Int32.to_int br) + 1 in            
@@ -88,9 +80,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                 let i = get_local_position exception_name in 
                 let stackframe_size = calc_stackframe_size f.locals in
                 let offset = I32.of_int_u ((stackframe_size - (i + 1)) * Shadow_stack.pointer_size) in
-                print_endline ("eh here:" ^ exception_name);
                 recent_exception_name := exception_name;
-                print_endline "add try catch blocks here";
                 let result = fix_body depth boundaries (result @ 
                     [Block (exception_name, s, 
                         [Block (
@@ -101,7 +91,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                                 let reversed = List.rev body in                        
                                 match (List.hd reversed) with
                                 | Br _ -> body
-                                | _ -> body @ (print_endline ("eh: br to" ^ exception_name); [Br (exception_name, 1l)])
+                                | _ -> body @ ([Br (exception_name, 1l)])
                             ))
                         ]
                         @
@@ -121,7 +111,6 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     )]                                        
                 ) remaining
                 in
-                print_endline "end try catch blocks here";
                 result
             | CallIndirect (t, args) :: remaining -> 
                 let x = find_function f.name in                         
@@ -135,7 +124,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     Load ("exception", {ty = I32Type; align = 0; offset = 0l; sz = None});
                     If ([], 
                         (
-                            if List.length boundaries > 0 then (
+                            if List.length boundaries > 0 && List.length boundaries > 0 then (
                                 [
                                     Const (I32 1l);
                                     Br ("try_body_" ^ !recent_exception_name, Int32.of_int (closest_exception boundaries))
@@ -170,7 +159,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     @
                     e
                     @
-                    (if List.length boundaries > 0 then (
+                    (if List.length boundaries > 0 && (closest_exception boundaries <> 0) then (
                         [Br ("try_body_" ^ !recent_exception_name, Int32.of_int (closest_exception boundaries - 1))]
                     )
                     else 
@@ -202,7 +191,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     Load ("exception", {ty = I32Type; align = 0; offset = 0l; sz = None});
                     If ([], 
                         (
-                            if List.length boundaries > 0 then (                                
+                            if List.length boundaries > 0 && List.length boundaries > 0 then (                                
                                 [
                                     Const (I32 1l);                                    
                                     Br ("try_body_" ^ !recent_exception_name, Int32.of_int (closest_exception boundaries))

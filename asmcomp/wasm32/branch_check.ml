@@ -39,9 +39,10 @@ let rec handle instr =
         print_endline (" - " ^ f ^ " (" ^ string_of_int !i ^ ")");
         i := !i + 1;
       ) block_stack
-    ) else (
+    );
+    (* else (
       print_endline ("Found: " ^ name ^ "(" ^ (Int32.to_string pos) ^ ")")
-    ); 
+    );  *)
     handle remaining
   | _ :: remaining ->
     handle remaining
@@ -49,8 +50,6 @@ let rec handle instr =
 ;;
 
 let check (_m: Ast.module_) = 
-  List.iter (fun (f:Ast.func) -> 
-    print_endline f.name;
-    print_endline "----";
+  List.iter (fun (f:Ast.func) ->     
     handle f.body
   ) _m.funcs
