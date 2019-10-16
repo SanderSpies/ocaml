@@ -725,11 +725,11 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       else
         result
   | Ttuple [Tconst_natint high; Tconst_natint low] ->
-    let i64 = Int64.add (Int64.shift_left (Int64.of_nativeint high) 32) (Int64.of_nativeint low)
+    let i64 = Int64.add (Int64.shift_left (Int64.of_nativeint low) 32) (Int64.of_nativeint high)
     in
     [Const (I64 i64)]    
   | Ttuple ([Top (Cload _, _, _, _) as el1; Top (Cload _, _, _, _) as el2]) ->
-      emit_expr el1
+      emit_expr el1 
       @
       [
         Convert (I64 I64Op.ExtendUI32);
@@ -1027,7 +1027,7 @@ let data dl =
         offset := !offset + 4;
         ()
         )
-    | Cdefine_symbol symbol ->       
+    | Cdefine_symbol symbol ->  
       symbol_name := symbol;      
     | Cint8 i -> (
         init := !init @ [Int8 i];
@@ -1057,7 +1057,6 @@ let data dl =
 
         init := !init @ [Float64 (F64.of_float d)];
         offset := !offset + 8;
-        ()
         )
     | Cstring s -> (
         init := !init @ [Ast.String s];

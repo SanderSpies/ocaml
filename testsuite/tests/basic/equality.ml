@@ -1,5 +1,7 @@
 (* TEST *)
 
+print_endline (string_of_float (float_of_string "nan"));;
+
 let test n check res =
   print_string "Test "; print_int n;
   if check res then print_string " passed.\n" else print_string " FAILED.\n";
@@ -54,6 +56,7 @@ let _ =
   test 18 eqm1 (compare 0.0 1.0);
   test 19 eqm1 (compare (-1.0) 0.0);
   test 20 eq0 (compare [| 0.0; 1.0; 2.0 |] [| 0.0; 1.0; 2.0 |]);
+  
   test 21 eqm1 (compare [| 0.0; 1.0; 2.0 |] [| 0.0; 1.0; 3.0 |]);
   test 22 eq1 (compare [| 0.0; 5.0; 2.0 |] [| 0.0; 1.0; 2.0 |]);
   test 23 eq0 (compare [1;2;3;4] [1;2;3;4]);
@@ -103,4 +106,5 @@ let _ =
   test 52 eqtrue (testcmpfloat 0.0 nan);
   test 53 eqtrue (testcmpfloat 0.0 0.0);
   test 54 eqtrue (testcmpfloat 1.0 0.0);
-  test 55 eqtrue (testcmpfloat 0.0 1.0)
+  test 55 eqtrue (testcmpfloat 0.0 1.0);
+  print_endline ""

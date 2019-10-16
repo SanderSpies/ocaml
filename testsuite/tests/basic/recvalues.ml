@@ -38,3 +38,5 @@ Gc.minor ();;
 if (List.hd (!(snd (x2.(0))))) () == s
 then print_string "Test 4: passed\n"
 else print_string "Test 4: FAILED\n"
+;;
+print_endline "";;
