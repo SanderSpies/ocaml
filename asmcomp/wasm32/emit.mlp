@@ -45,8 +45,8 @@ type block_stack_item =
 | BCswitch_case of string
 | BWith of int
 | BCcatch 
-| BCheckbound1
-| BCheckbound2
+(* | BCheckbound1
+| BCheckbound2 *)
 
 type block_stack = block_stack_item Stack.t
 
@@ -520,7 +520,7 @@ let begin_assembly () = (
     ]
   };
   global_offset := !global_offset + 1
-)
+);;
 
 let fundecl ({fun_name; fun_args; fun_body; _}) =
   Stack.clear block_stack;
@@ -567,9 +567,10 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           | Tconst_symbol (symbol, Sdata) -> [DataSymbol symbol]
           | _ as e -> emit_expr e
           in
-          let add = match rt with 
-          | [F32Type]
+          
+          let add = match rt with           
           | [I32Type] -> 4
+          | [F32Type] -> 4
           | [F64Type] -> 8
           | _ -> assert false
           in
@@ -588,9 +589,12 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
         calls
         @    
         [GetLocal name;
-        Const (I32 4l);
-        Binary (I32 I32Op.Add)
-        ]
+      
+            Const (I32 4l);
+            Binary (I32 I32Op.Add)
+          ]
+    
+        
         in 
         result
       )
@@ -615,23 +619,20 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       result
     | Ccheckbound, [(fst, _); (snd, _)] -> 
       let fst = emit_expr fst in
-      let snd = emit_expr snd in    
-      Stack.push BCheckbound1 block_stack;
-      let i = fst @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] in
-      let t = [
-        Throw [Const (I32 1l)]        
-      ] in
-      Stack.push BCheckbound2 block_stack;
-      let e = snd @ [Const (I32 0l)] @ [Compare (I32 I32Op.LtS)] @ [If ([], [
-            Throw [Const (I32 1l)]
-          ], [])]
-      in
-      ignore(Stack.pop block_stack);
-      let result = i @ [If ([], t, e)] in
-      ignore(Stack.pop block_stack);
-      result
+      let snd = emit_expr snd in 
+      fst 
+      @
+      snd
+      @
+      [Compare (I32 I32Op.LeU);
+       If ([], 
+       [
+         Throw [Const (I32 1l)]
+       ],
+       [])
+      ]       
     | Cextcall (symbol, mt, _, _), _ ->   
-      [Call (symbol, el2)] @ (if (mt = typ_void && symbol <> "caml_modify") then [Drop] else [])
+      [Call (symbol, el2)] @ (if (mt = typ_void && symbol <> "caml_modify" && symbol <> "caml_initialize") then [Drop] else [])
     | Craise _, expr ->       
       [Throw (List.fold_left (fun all (a, _) -> all @ emit_expr a) [] expr)]
     | _ -> 
@@ -707,10 +708,10 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
   and emit_expr expression =
     match expression with
     | Tconst_int i -> [Const (I32 (I32.of_int_s i))]
-    | Tconst_natint i -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
+    | Tconst_natint i -> [Const (I32 (Nativeint.to_int32 i))]
     | Tconst_float f -> [Const (F64 (F64.of_float f))]  
     | Tconst_symbol (symbol, _) -> [DataSymbol symbol]
-    | Tblockheader (i, _) -> [Const (I32 (I32.of_int_s (Nativeint.to_int i)))]
+    | Tblockheader (i, _) -> [Const (I32 (Nativeint.to_int32 i))]
     | Tvar (ident, _mt, _pos) -> [GetLocal (ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp)]
     | Tassign (ident, e, _pos) -> [SetLocal ((ident.Ident.name ^ "/" ^ string_of_int ident.Ident.stamp), emit_expr e)]
     | Ttuple [] -> [Nop]
@@ -930,7 +931,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       no_of_args = List.length fun_args
     }];
     types = w.types @ [{
-      tname = fun_name; 
+      tname = fun_name;
     tdetails = Types.FuncType (args, mach_to_wasm rt)
     }];
   }
@@ -1050,8 +1051,12 @@ let data dl =
         )
     | Csingle d
     | Cdouble d -> (
+        print_endline ("Double here:" ^ string_of_float d);
+        print_endline ("NaN:" ^ string_of_float nan);
+        print_endline ("NaN:" ^ string_of_float infinity);
+
         init := !init @ [Float64 (F64.of_float d)];
-        offset := !offset + 4;
+        offset := !offset + 8;
         ()
         )
     | Cstring s -> (

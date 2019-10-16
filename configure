@@ -493,7 +493,7 @@ internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
 
 case "$cc,$target" in
   clang,wasm32-unknown-wasi*)
-    common_cflags="--target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -v" # For better output size:  -O3 -Wl,-s"
+    common_cflags="--target=wasm32-unknown-wasi -m32 --sysroot /wasi-sysroot/sysroot -v -g " # For better output size:  -O3 -Wl,-s"
     TOOLPREF=llvm-;;
   *,*-*-rhapsody*)
     common_cppflags="-DSHRINKED_GNUC $common_cppflags"
@@ -819,7 +819,7 @@ natdynlinkopts=""
 if $with_sharedlibs; then
   case "$target" in
     wasm32-unknown-wasi*)
-      ldflags="$ldflags -Wl,--allow-undefined";;
+      ldflags="$ldflags -Wl,--allow-undefined -m32";;
     *-*-cygwin*)
       mksharedlib="$flexlink"
       mkmaindll="$flexlink -maindll"
@@ -1064,7 +1064,7 @@ case "$arch,$system" in
                     else
                       as="${TOOLPREF}as -arch x86_64"
                       aspp="${TOOLPREF}gcc -arch x86_64 -c"
-                    fi;;
+                    fi;;  
   amd64,solaris)  as="${TOOLPREF}as --64"
                   aspp="${TOOLPREF}gcc -m64 -c";;
   i386,solaris)   as="${TOOLPREF}as"

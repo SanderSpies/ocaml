@@ -389,21 +389,21 @@ let rec process env e =
         result
 
 let add_types func_name fun_args e =
-    let env = initial_env() in
-    let stack = env.stack in
-    let locals = env.locals in
-    let add_local = add_local env in
-    List.iter (fun (i, mt) ->
-      add_local (ident i, mt)
-    ) fun_args;
-    let block_stack = env.stack in
-    let result = process env e in
-    (if (Stack.length stack <> 1) then (
-        Stack.iter print_stack_type stack;
-        failwith ("Stack was expected to have a length of 1, but got " ^ string_of_int (Stack.length stack)))
-    );
-    (if (Stack.length block_stack <> 1) then 
-        failwith ("Block stack was expected to have a length of 1, but got " ^ string_of_int (Stack.length block_stack));
-    );    
-    functions := !functions @ [(func_name, mach_to_wasm (Stack.top stack), List.map mach_to_wasm (snd (List.split fun_args)))];
-    (result, Stack.top stack, !locals, !functions)
+  let env = initial_env() in
+  let stack = env.stack in
+  let locals = env.locals in
+  let add_local = add_local env in
+  List.iter (fun (i, mt) ->
+    add_local (ident i, mt)
+  ) fun_args;
+  let block_stack = env.stack in
+  let result = process env e in
+  (if (Stack.length stack <> 1) then (
+      Stack.iter print_stack_type stack;
+      failwith ("Stack was expected to have a length of 1, but got " ^ string_of_int (Stack.length stack)))
+  );
+  (if (Stack.length block_stack <> 1) then 
+      failwith ("Block stack was expected to have a length of 1, but got " ^ string_of_int (Stack.length block_stack));
+  );    
+  functions := !functions @ [(func_name, mach_to_wasm (Stack.top stack), List.map mach_to_wasm (snd (List.split fun_args)))];
+  (result, Stack.top stack, !locals, !functions)

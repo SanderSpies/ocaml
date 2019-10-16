@@ -1488,7 +1488,7 @@ wasm32-all:
 	make wasm32
 
 wasm32-test:
-	boot/ocamlrun ./ocamlopt -o test -dcmm test.ml -I stdlib -dstartup
+	boot/ocamlrun ./ocamlopt -g -o test -dcmm test.ml -I stdlib -dstartup
 
 watch:
 	while true; do \
@@ -1506,19 +1506,19 @@ wasm32:
 	rm -f asmcomp/asmgen.cmo	
 	make opt-core
 	# make libasmrun-wasm
-	make wasm32-test
+	# make wasm32-test
 	# ../wabt/bin/wasm2wat test --inline-exports --inline-imports
 
 wasi-full: clean 
 	# clang --target=wasm32-unknown-wasi --sysroot /wasi-sysroot/sysroot -Os -s -o example.wasm test.c
-	./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph
+	./configure -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -cc "gcc -m32" -host i386-linux  -partialld "ld -r -melf_i386" -aspp "gcc -m32 -c" -as "as --32" 
 	make coldstart ocamlyacc
 	cp byterun/ocamlrun /usr/bin/
 	cp yacc/ocamlyacc /usr/bin/
 	make wasi
 
 wasi:
-	WASM32=true ./configure --target wasm32-unknown-wasi -target-bindir wasm-bin -cc clang -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -target-wasm32
+	WASM32=true ./configure --target wasm32-unknown-wasi -target-bindir wasm-bin -cc clang -partialld "ld -r -m32" -no-pthread -no-debugger -no-curses -no-ocamldoc -no-graph -target-wasm32
 	# make caml/version.h
 	make wasm32
 	make replace
@@ -1530,11 +1530,86 @@ wasi-fast:
 replace:
 	/workspace/wabt/bin/wasm2wat test --no-check -o test8.wat
 	sed 's/local.get/get_local/g; s/local.set/set_local/g; s/local.tee/tee_local/g; s/global.get/get_global/g; s/global.set/set_global/g; s/global.tee/tee_global/g; s/convert_i32_u/convert_u\/i32/g; s/convert_i32_s/convert_s\/i32/g; s/trunc_f64_u/trunc_u\/f64/g; s/trunc_f64_s/trunc_s\/f64/g; s/reinterpret_i64/reinterpret\/i64/g; s/reinterpret_f64/reinterpret\/f64/g; s/extend_i32_s/extend_s\/i32/g; s/extend_i32_u/extend_u\/i32/g; s/convert_i64_s/convert_s\/i64/g; s/wrap_i64/wrap\/i64/g; s/demote_f64/demote\/f64/g; s/promote_f32/promote\/f32/g; s/trunc_f32_u/trunc_u\/f32/g;  s/funcref/anyfunc/g; s/reinterpret_f32/reinterpret\/f32/g; s/memory.grow/grow_memory/g; s/reinterpret_i32/reinterpret\/i32/g' test8.wat > test9.wat
+	# /workspace/wabt/bin/wasm2wat test2 --no-check -o test8_2.wat
+	# sed 's/local.get/get_local/g; s/local.set/set_local/g; s/local.tee/tee_local/g; s/global.get/get_global/g; s/global.set/set_global/g; s/global.tee/tee_global/g; s/convert_i32_u/convert_u\/i32/g; s/convert_i32_s/convert_s\/i32/g; s/trunc_f64_u/trunc_u\/f64/g; s/trunc_f64_s/trunc_s\/f64/g; s/reinterpret_i64/reinterpret\/i64/g; s/reinterpret_f64/reinterpret\/f64/g; s/extend_i32_s/extend_s\/i32/g; s/extend_i32_u/extend_u\/i32/g; s/convert_i64_s/convert_s\/i64/g; s/wrap_i64/wrap\/i64/g; s/demote_f64/demote\/f64/g; s/promote_f32/promote\/f32/g; s/trunc_f32_u/trunc_u\/f32/g;  s/funcref/anyfunc/g; s/reinterpret_f32/reinterpret\/f32/g; s/memory.grow/grow_memory/g; s/reinterpret_i32/reinterpret\/i32/g' test8_2.wat > test9_2.wat
+
 
 include .depend
 
 wasi-test:
 	RUST_BACKTRACE=1 lldb /wasmtime/target/release/wasmtime -- -g test --env=OCAMLRUNPARAM=-b
 
+ocamllex-test2: wasi
+	cd lex && rm -rf ocamllex.opt ocamllex.wat && make ocamllex.wat && /wasmtime/target/release/wasmtime ocamllex.opt -- lexer.mll -o wtf
+
+
 ocamllex-test: wasi-fast
-	cd lex && rm -rf ocamllex.opt && make ocamllex.opt &> hubba && /wasmtime/target/release/wasmtime ocamllex.opt -- lexer.mll -o wtf
+	cd lex && rm -rf ocamllex.opt ocamllex.wat && make ocamllex.wat && /wasmtime/target/release/wasmtime ocamllex.opt -- lexer.mll -o wtf
+
+ocamllex:
+	cd lex && rm -rf ocamllex.opt ocamllex.wat && make ocamllex.wat && /wasmtime/target/release/wasmtime ocamllex.opt --env=OCAMLRUNPARAM=p -- -o foo lexer.mll
+
+testsuite-wasm:
+	# don't error:
+	# === 
+	# boot/ocamlrun ./ocamlopt -g -o eval_order_1 -dcmm testsuite/tests/basic/eval_order_1.ml -I stdlib -dstartup	
+	# /wasmtime/target/release/wasmtime eval_order_1
+	# boot/ocamlrun ./ocamlopt -g -o eval_order_2 -dcmm testsuite/tests/basic/eval_order_2.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime eval_order_2
+	# boot/ocamlrun ./ocamlopt -g -o eval_order_3 -dcmm testsuite/tests/basic/eval_order_3.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime eval_order_3
+	# boot/ocamlrun ./ocamlopt -g -o eval_order_4 -dcmm testsuite/tests/basic/eval_order_4.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime eval_order_4
+	# boot/ocamlrun ./ocamlopt -g -o eval_order_6 -dcmm testsuite/tests/basic/eval_order_6.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime eval_order_6
+	# boot/ocamlrun ./ocamlopt -g -o float_physical_equality -dcmm testsuite/tests/basic/float_physical_equality.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime float_physical_equality
+	# boot/ocamlrun ./ocamlopt -g -o float -dcmm testsuite/tests/basic/float.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime float
+	# boot/ocamlrun ./ocamlopt -g -o localexn -dcmm testsuite/tests/basic/localexn.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime localexn
+	# boot/ocamlrun ./ocamlopt -g -o pr7533 -dcmm testsuite/tests/basic/pr7533.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime pr7533
+	# boot/ocamlrun ./ocamlopt -g -o stringmatch -dcmm testsuite/tests/basic/stringmatch.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime stringmatch
+	# boot/ocamlrun ./ocamlopt -g -o trigraph -dcmm testsuite/tests/basic/trigraph.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime trigraph
+	# boot/ocamlrun ./ocamlopt -g -o zero_divided_by_n -dcmm testsuite/tests/basic/zero_divided_by_n.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime zero_divided_by_n
+
+	# boot/ocamlrun ./ocamlopt -g -o arrays -dcmm testsuite/tests/basic/arrays.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime arrays
+	# boot/ocamlrun ./ocamlopt -g -o bigints -dcmm testsuite/tests/basic/bigints.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime bigints
+	# boot/ocamlrun ./ocamlopt -g -o boxedints -dcmm testsuite/tests/basic/boxedints.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime boxedints
+	# boot/ocamlrun ./ocamlopt -g -o constprop -dcmm testsuite/tests/basic/constprop.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime constprop
+	# boot/ocamlrun ./ocamlopt -g -o divint -dcmm testsuite/tests/basic/divint.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime divint
+	boot/ocamlrun ./ocamlopt -g -o equality -dcmm testsuite/tests/basic/equality.ml -I stdlib -dstartup
+	/wasmtime/target/release/wasmtime equality
+	/workspace/wabt/bin/wasm2wat equality -o equality.wat	
+	# boot/ocamlrun ./ocamlopt -g -o includestruct -dcmm testsuite/tests/basic/includestruct.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime includestruct
+	# boot/ocamlrun ./ocamlopt -g -o maps -dcmm testsuite/tests/basic/maps.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime maps
+	# boot/	ocamlrun ./ocamlopt -g -o min_int -dcmm testsuite/tests/basic/min_int.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime min_int
+	# boot/ocamlrun ./ocamlopt -g -o opt_variants -dcmm testsuite/tests/basic/opt_variants.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime opt_variants	
+	# boot/ocamlrun ./ocamlopt -g -o patmatch -dcmm testsuite/tests/basic/patmatch.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime patmatch
+	# boot/ocamlrun ./ocamlopt -g -o pr7657 -dcmm testsuite/tests/basic/pr7657.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime pr7657
+	# boot/ocamlrun ./ocamlopt -g -o recvalues -dcmm testsuite/tests/basic/recvalues.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime recvalues
+	# boot/ocamlrun ./ocamlopt -g -o sets -dcmm testsuite/tests/basic/sets.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime sets
+	# boot/ocamlrun ./ocamlopt -g -o switch_opts -dcmm testsuite/tests/basic/switch_opts.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime switch_opts
+	# boot/ocamlrun ./ocamlopt -g -o tailcalls -dcmm testsuite/tests/basic/tailcalls.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime tailcalls
+
+
+

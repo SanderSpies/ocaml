@@ -21,6 +21,31 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
         } 
     )
     in
+    let fix_caml_program (f: Ast.func) = (
+        let rec handle result = function
+            | Call (function_name, args) :: Drop :: remaining  -> (
+                handle (
+                    result @ 
+                    [
+                        Call (function_name, args);
+                        Const (I32 (-1l));
+                        Compare (I32 I32Op.Eq);
+                        If ([], [
+                            (* TODO: SHOW PROPER ERROR MESSAGE HERE *)
+                            Unreachable
+                        ], [])                        
+                    ]
+                ) remaining        
+            )
+            | other :: remaining -> 
+                handle (result @ [other]) remaining
+            | [] -> result
+        in
+        {f with 
+            body = handle [] f.Ast.body
+        } 
+    )
+    in
     let calc_stackframe_size locals = 
         (List.length (List.filter (fun (name, _) -> (String.length name < 13 || String.sub name 0 13 <> "shadow_stack_" )) locals))
     in
@@ -160,7 +185,15 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                     e
                     @
                     (if List.length boundaries > 0 && (closest_exception boundaries <> 0) then (
-                        [Br ("try_body_" ^ !recent_exception_name, Int32.of_int (closest_exception boundaries - 1))]
+                        (* [Const (I32 1l);
+                        Binary (I32 I32Op.Shl);
+                        Const (I32 1l);
+                        Binary (I32 I32Op.Add);
+                        Store ("exception", {ty = I32Type; align = 0; offset = 0l; sz = None});
+                        Const (I32 1l); *)
+                        [
+                        Br ("try_body_" ^ !recent_exception_name, Int32.of_int (closest_exception boundaries - 1))
+                        ]
                     )
                     else 
                     [ 
@@ -173,13 +206,13 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         Const (I32 (I32.of_int_u (((calc_stackframe_size f.locals) - 1) * Shadow_stack.pointer_size)));  
                         Binary (I32 I32Op.Add);
                         SetGlobal "__stack_pointer";
-                        Const (I32 1l);
+                        Const (I32 (-1l));
                         Return
                     ])
                 ) []
             | SetLocal (s, i) :: remaining ->
                 fix_body depth boundaries (result @ [SetLocal (s, fix_body depth boundaries [] i)]) remaining
-            | Call (function_name, args) :: remaining when function_name <> "caml_alloc" -> (
+            | Call (function_name, args) :: remaining when function_name <> "caml_alloc" && function_name <> "caml_garbage_collection" -> (
                 let x = find_function f.name in                         
                 let rt = match x with 
                 | Some (_, rt, _) -> rt 
@@ -229,8 +262,10 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
         funcs = List.map (fun (f:Ast.func) -> 
             if f.name = "caml_raise_exception" then 
                 fix_raise_exception f
+            else if f.name = "caml_program" then 
+                fix_caml_program f
             else if Shadow_stack.is_external_call f.name then         
-                f 
+                f
             else 
                 func f
             ) w.funcs;

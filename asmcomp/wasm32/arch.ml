@@ -2,7 +2,7 @@ let big_endian = false
 
 let size_addr = 4
 let size_int = size_addr
-let size_float = 4
+let size_float = 8
 
 type addressing_mode
 type specific_operation
