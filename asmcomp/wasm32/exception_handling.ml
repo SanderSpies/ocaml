@@ -23,7 +23,10 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
     in
     let fix_caml_program (f: Ast.func) = (
         let rec handle result = function
-            | Call (function_name, args) :: Drop :: remaining  -> (
+            (*
+            FIXME: doesn't work correctly just yet
+
+             | Call (function_name, args) :: Drop :: remaining  -> (
                 handle (
                     result @ 
                     [
@@ -36,7 +39,7 @@ let add_exception_handling w (fns: Typed_cmm.func_result list) = (
                         ], [])                        
                     ]
                 ) remaining        
-            )
+            ) *)
             | other :: remaining -> 
                 handle (result @ [other]) remaining
             | [] -> result

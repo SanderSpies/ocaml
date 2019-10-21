@@ -571,6 +571,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
           let add = match rt with           
           | [I32Type] -> 4
           | [F32Type] -> 4
+          | [I64Type] -> 8
           | [F64Type] -> 8
           | _ -> assert false
           in
@@ -788,6 +789,7 @@ let fundecl ({fun_name; fun_args; fun_body; _}) =
       drop  
     )
     | Top (operation, expression_list, _, _) -> to_operations expression_list operation
+    | Tsequence (_e, Tconst_int 0) -> print_endline "yes"; [Const (I32 0l)]        
     | Tsequence (e, Ttuple []) -> emit_expr e @ [Drop]        
     | Tsequence (e1, e2) -> (emit_expr e1) @ (emit_expr e2)    
     | Tifthenelse (if_, then_, else_, rt) ->           

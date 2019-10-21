@@ -90,6 +90,7 @@ static frame_descr * next_frame_descr(frame_descr * d) {
 }
 
 static void fill_hashtable(link *frametables) {
+  printf("fill_hashtable \n");
   intnat len, j;
   intnat * tbl;
   frame_descr * d;
@@ -97,14 +98,18 @@ static void fill_hashtable(link *frametables) {
   link *lnk = NULL;
 
   iter_list(frametables,lnk) {
+    printf("fill_hashtable-iter \n");
     tbl = (intnat*) lnk->data;
     len = *tbl;
     d = (frame_descr *)(tbl + 1);
     for (j = 0; j < len; j++) {
+      printf("fill_hashtable-iter-for \n");
       h = Hash_retaddr(d->retaddr);
       while (caml_frame_descriptors[h] != NULL) {
+        printf("fill_hashtable-iter-for-while \n");
         h = (h+1) & caml_frame_descriptors_mask;
       }
+      printf("fill_hashtable-iter-for-x \n");
       caml_frame_descriptors[h] = d;
       d = next_frame_descr(d);
     }
@@ -113,6 +118,7 @@ static void fill_hashtable(link *frametables) {
 
 static void init_frame_descriptors(link *new_frametables)
 {
+  printf("init_frame_descriptors \n");
   intnat tblsize, increase, i;
   link *tail = NULL;
 
@@ -240,9 +246,6 @@ extern int stack_bottom ();
 void caml_oldify_local_roots (void)
 {
 
-  int bottom = stack_bottom();
-  uintptr_t stack_top = (uintptr_t)&__heap_base;
-
   char * sp;
   uintnat retaddr;
   value * regs;
@@ -282,9 +285,15 @@ void caml_oldify_local_roots (void)
   }
 
   /* The stack and local roots */
-  for (int i = bottom, l = stack_top; i < l; i += 8) {
-    uintptr_t *p = i;
-    Oldify(&p);    
+  for (int i = stack_bottom(), l = (uintptr_t)&__heap_base; i < l; i += 8) {
+    ofs = i;
+    if (ofs & 1) {
+      root = (ofs >> 1);
+    } else {
+      root = (value *) ofs;
+    }
+    fprintf(stderr, "Oldify: %ul \n", root);
+    Oldify (root);    
   }
 
   // sp = (void*)&sp;
@@ -464,14 +473,8 @@ void caml_do_local_roots(scanning_action f, char * bottom_of_stack,
                          uintnat last_retaddr, value * gc_regs,
                          struct caml__roots_block * local_roots)
 {
-  int bottom = stack_bottom();
-  uintptr_t stack_top = (uintptr_t)&__heap_base;
-  for (int i = bottom, l = stack_top; i < l; i += 8) {
-    uintptr_t *p = i;
-    // Oldify(&p);    
-    f (p, &p);
-  }
-
+  // fprintf(stderr, "caml_do_local_roots \n");
+    
 //   char * sp;
 //   uintnat retaddr;
 //   value * regs;
@@ -485,6 +488,17 @@ void caml_do_local_roots(scanning_action f, char * bottom_of_stack,
 // #endif
   value * root;
   struct caml__roots_block *lr;
+
+  for (int i = stack_bottom(), l = (uintptr_t)&__heap_base; i < l; i += 8) {
+    ofs = i;
+    if (ofs & 1) {
+      root = (ofs >> 1);
+    } else {
+      root = (value *)ofs;
+    }
+    f (*root, root);
+  }
+
 
 //   sp = bottom_of_stack;
 //   retaddr = last_retaddr;

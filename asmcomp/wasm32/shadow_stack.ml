@@ -31,7 +31,6 @@ let is_external_call name =
 
 let pointer_size = 8
 
-
 let add_shadow_stack w fns = (
   let func (f:Ast.func) = (
     let counter = ref 0 in
@@ -79,7 +78,7 @@ let add_shadow_stack w fns = (
       let push_stackframe =
         (if stackframe_size > 0 then 
           [ GetGlobal "__stack_pointer";
-            Const (I32 (I32.of_int_u stackframe_size)); 
+            Const (I32 (I32.of_int_s stackframe_size)); 
             Binary (I32 I32Op.Sub);
             TeeLocal "__local_sp";
             SetGlobal "__stack_pointer"]  
@@ -104,7 +103,7 @@ let add_shadow_stack w fns = (
               ([SetLocal (local_name, (fix_body [] a is_cextcall))],
                [
                  GetGlobal "__stack_pointer";
-                  Const (I32 (I32.of_int_u arg_pos)); 
+                  Const (I32 (I32.of_int_s arg_pos)); 
                   Binary (I32 I32Op.Sub);
                   GetLocal local_name;
                  Store ("local_var_" ^ (string_of_int arg_pos), {ty = arg_type t i ; align = 0; offset = 0l; sz = None})]              
@@ -126,7 +125,7 @@ let add_shadow_stack w fns = (
                     ([SetLocal (local_name, (fix_body [] a is_cextcall))],
                      [
                       GetGlobal "__stack_pointer";
-                      Const (I32 (I32.of_int_u arg_pos)); 
+                      Const (I32 (I32.of_int_s arg_pos)); 
                       Binary (I32 I32Op.Sub);
                       GetLocal local_name;
                       (
@@ -143,7 +142,7 @@ let add_shadow_stack w fns = (
           fix_body (result @ [TryCatch (s, fix_body [] then_ is_cextcall, x, fix_body [] catch_ is_cextcall)]) remaining is_cextcall
         | GetLocal x :: remaining -> 
           let i = get_local_position x in
-          let offset = I32.of_int_u (stackframe_size - ((i + 1) * pointer_size)) in
+          let offset = I32.of_int_s (stackframe_size - ((i + 1) * pointer_size)) in
           let (_, ty) = (List.nth f.locals i) in
           fix_body          
           (result 
@@ -165,7 +164,7 @@ let add_shadow_stack w fns = (
         | SetLocal (x, arg)  :: remaining ->           
           
           let pos = get_local_position x in  
-          let offset = I32.of_int_u (stackframe_size - ((pos + 1) * pointer_size)) in        
+          let offset = I32.of_int_s (stackframe_size - ((pos + 1) * pointer_size)) in        
           fix_body           
           (result 
           @               
@@ -183,7 +182,7 @@ let add_shadow_stack w fns = (
             if stackframe_size > 0 then
               [            
                 GetLocal "__local_sp";
-                Const (I32 (I32.of_int_u stackframe_size));  
+                Const (I32 (I32.of_int_s stackframe_size));  
                 Binary (I32 I32Op.Add);  
                 SetGlobal "__stack_pointer";                
                 Return
@@ -198,11 +197,11 @@ let add_shadow_stack w fns = (
       let pop_stackframe = 
         if stackframe_size > 0 then
           [             
-            GetGlobal "__stack_pointer";
-            Const (I32 (I32.of_int_u stackframe_size));
-            Binary (I32 I32Op.Add);
-            SetGlobal "__stack_pointer";
             Call ("caml_garbage_collection", []);
+            GetGlobal "__stack_pointer";
+            Const (I32 (I32.of_int_s stackframe_size));
+            Binary (I32 I32Op.Add);
+            SetGlobal "__stack_pointer";            
           ]  
         else  
           []

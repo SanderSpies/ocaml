@@ -71,8 +71,9 @@ let mach_to_wasm = function
   | [|Float|] -> [F64Type]   
   | [|Val|]
   | [|Addr|]
-  | [|Int|] -> 
-    [I32Type]
+  | [|Int|] -> [I32Type]
+  | [|Int; Int|] -> 
+    [I64Type]
   | _ -> assert false
 
 let oper_result_type = function
@@ -254,7 +255,8 @@ let rec process env e =
 
         let operation_type = oper_result_type o in    
         let expected_length = Stack.length stack + List.length el in
-        let processed = List.map (process {env with needs_return = true}) el in        
+        let processed = List.map (process {env with needs_return = true}) el in  
+        print_endline "TODO: properly handle I64 here";      
         let result = Top (o, List.combine processed args, d, mach_to_wasm operation_type) in         
         (if Stack.length stack <> expected_length then
             failwith ("Not correct:" ^ string_of_int (Stack.length stack) ^ " vs " ^ string_of_int expected_length)
@@ -393,6 +395,7 @@ let add_types func_name fun_args e =
   let stack = env.stack in
   let locals = env.locals in
   let add_local = add_local env in
+  print_endline ("Typed_cmm:" ^ func_name);
   List.iter (fun (i, mt) ->
     add_local (ident i, mt)
   ) fun_args;

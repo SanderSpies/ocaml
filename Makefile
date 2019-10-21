@@ -1550,7 +1550,7 @@ ocamllex:
 	cd lex && rm -rf ocamllex.opt ocamllex.wat && make ocamllex.wat && /wasmtime/target/release/wasmtime ocamllex.opt --env=OCAMLRUNPARAM=p -- -o foo lexer.mll
 
 testsuite-wasm:
-	# don't error:
+	# should work:
 	# === 
 	# boot/ocamlrun ./ocamlopt -g -o eval_order_1 -dcmm testsuite/tests/basic/eval_order_1.ml -I stdlib -dstartup	
 	# /wasmtime/target/release/wasmtime eval_order_1
@@ -1576,40 +1576,69 @@ testsuite-wasm:
 	# /wasmtime/target/release/wasmtime trigraph
 	# boot/ocamlrun ./ocamlopt -g -o zero_divided_by_n -dcmm testsuite/tests/basic/zero_divided_by_n.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime zero_divided_by_n
-
-	# boot/ocamlrun ./ocamlopt -g -o arrays -dcmm testsuite/tests/basic/arrays.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime arrays
+	# boot/ocamlrun ./ocamlopt -g -o equality -dcmm testsuite/tests/basic/equality.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime equality
+	# /workspace/wabt/bin/wasm2wat equality -o equality.wat	
 	# boot/ocamlrun ./ocamlopt -g -o bigints -dcmm testsuite/tests/basic/bigints.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime bigints
-	# boot/ocamlrun ./ocamlopt -g -o boxedints -dcmm testsuite/tests/basic/boxedints.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime boxedints
-	# boot/ocamlrun ./ocamlopt -g -o constprop -dcmm testsuite/tests/basic/constprop.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime constprop
-	# boot/ocamlrun ./ocamlopt -g -o divint -dcmm testsuite/tests/basic/divint.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime divint
-	boot/ocamlrun ./ocamlopt -g -o equality -dcmm testsuite/tests/basic/equality.ml -I stdlib -dstartup
-	/wasmtime/target/release/wasmtime equality
-	/workspace/wabt/bin/wasm2wat equality -o equality.wat	
-	# boot/ocamlrun ./ocamlopt -g -o includestruct -dcmm testsuite/tests/basic/includestruct.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime includestruct
-	# boot/ocamlrun ./ocamlopt -g -o maps -dcmm testsuite/tests/basic/maps.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime maps
-	# boot/	ocamlrun ./ocamlopt -g -o min_int -dcmm testsuite/tests/basic/min_int.ml -I stdlib -dstartup
+	# boot/ocamlrun ./ocamlopt -g -o min_int -dcmm testsuite/tests/basic/min_int.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime min_int
-	# boot/ocamlrun ./ocamlopt -g -o opt_variants -dcmm testsuite/tests/basic/opt_variants.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime opt_variants	
-	# boot/ocamlrun ./ocamlopt -g -o patmatch -dcmm testsuite/tests/basic/patmatch.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime patmatch
-	# boot/ocamlrun ./ocamlopt -g -o pr7657 -dcmm testsuite/tests/basic/pr7657.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime pr7657
-	# boot/ocamlrun ./ocamlopt -g -o recvalues -dcmm testsuite/tests/basic/recvalues.ml -I stdlib -dstartup
-	# /wasmtime/target/release/wasmtime recvalues
 	# boot/ocamlrun ./ocamlopt -g -o sets -dcmm testsuite/tests/basic/sets.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime sets
+
+	# TODO
+	# boot/ocamlrun ./ocamlopt -g -o arrays -dcmm testsuite/tests/basic/arrays.ml -I stdlib -dstartup	
+	# /workspace/wabt/bin/wasm2wat arrays -o arrays.wat
+	# /wasmtime/target/release/wasmtime arrays
+	# -> GC issues
+	
+	# boot/ocamlrun ./ocamlopt -g -o boxedints -dcmm testsuite/tests/basic/boxedints.ml -I stdlib -dstartup
+	# /workspace/wabt/bin/wasm2wat boxedints -o boxedints.wat
+	# /wasmtime/target/release/wasmtime boxedints
+	# i32; i32 -> i64 problem
+
+	boot/ocamlrun ./ocamlopt -g -o divint -dcmm testsuite/tests/basic/divint.ml -I stdlib -dstartup
+	/workspace/wabt/bin/wasm2wat divint -o divint.wat
+	/wasmtime/target/release/wasmtime divint
+	# Fails on: 
+	# 	(function{testsuite/tests/basic/divint.ml:67,54-72} camlDivint__fun_1777
+	#      (x/1736: val)
+	#  (+ (<< (seq (>>s x/1736 1) 0) 1) 1))
+	# related tos `foo mod 1`
+	
+	# boot/ocamlrun ./ocamlopt -g -o includestruct -dcmm testsuite/tests/basic/includestruct.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime includestruct
+	# fails on:  module E =
+	#     struct
+	#  exception Exn of string
+	#  class c = object method m = 1 end
+	# end	
+
+	# boot/ocamlrun ./ocamlopt -g -o maps -dcmm testsuite/tests/basic/maps.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime maps
+	
+	# boot/ocamlrun ./ocamlopt -g -o opt_variants -dcmm testsuite/tests/basic/opt_variants.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime opt_variants	
+	
+	# boot/ocamlrun ./ocamlopt -g -o patmatch -dcmm testsuite/tests/basic/patmatch.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime patmatch
+
+	# boot/ocamlrun ./ocamlopt -g -o pr7657 -dcmm testsuite/tests/basic/pr7657.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime pr7657
+	# Problem: `try ( raise Foo ) with Foo ...` not handled properly
+	
+	# boot/ocamlrun ./ocamlopt -g -o recvalues -dcmm testsuite/tests/basic/recvalues.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime recvalues
+	# Problem:   # GC.minor issue!
+
 	# boot/ocamlrun ./ocamlopt -g -o switch_opts -dcmm testsuite/tests/basic/switch_opts.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime switch_opts
+
+	# won't fix:
 	# boot/ocamlrun ./ocamlopt -g -o tailcalls -dcmm testsuite/tests/basic/tailcalls.ml -I stdlib -dstartup
 	# /wasmtime/target/release/wasmtime tailcalls
+	# boot/ocamlrun ./ocamlopt -g -o constprop -dcmm testsuite/tests/basic/constprop.ml -I stdlib -dstartup
+	# /wasmtime/target/release/wasmtime constprop
 
 
 
